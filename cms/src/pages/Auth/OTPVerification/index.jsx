@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import apiClient from '../../../api/apiClient';
-import authBg from "../../../assets/images/auth.jpg";
+import authBg from "../../../assets/images/auth.webp";
 
 const OTPVerification = () => {
   const [otp, setOtp] = useState('');

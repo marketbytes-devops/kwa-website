@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, Settings, User, LogOut, Bell } from 'lucide-react'; 
+import { Text, Settings, User, LogOut } from 'lucide-react'; 
 import { useLocation, useNavigate } from 'react-router';
 import apiClient from '../../api/apiClient';
 
@@ -67,15 +67,6 @@ const Topbar = ({ toggleSidebar, userAvatar, username }) => {
         </div>
       </div>
       <div className="relative flex items-center mr-12">
-        <button
-          className="p-2 rounded-xs transition-all duration-200 relative overflow-hidden group"
-        >
-          <div className="absolute inset-0" />
-          <Bell 
-            className="w-10 h-10 border p-2 border-gray-200 hover:border-none hover:bg-gray-200 rounded-full text-gray-800 relative transition-colors duration-300 group-hover:text-gray-800" 
-            strokeWidth={1.5} 
-          />
-        </button>
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           className="p-2 rounded-xs transition-all duration-200 relative overflow-hidden group"

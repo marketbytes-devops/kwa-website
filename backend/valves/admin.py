@@ -8,6 +8,6 @@ class ValveAdmin(admin.ModelAdmin):
     list_filter = ('size', 'full_open_condition')
 
     def current_position(self, obj):
-        return f"{obj.percentage}% Open"
+        return f""
 
     current_position.short_description = 'Current Position'
