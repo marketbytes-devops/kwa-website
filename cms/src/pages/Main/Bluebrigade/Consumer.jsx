@@ -5,16 +5,17 @@ const ConsumerBlueBrigade = () => {
   const [complaints, setComplaints] = useState([]);
 
   useEffect(() => {
-    apiClient.get('/complaint/complaints/')
-      .then(response => {
+    apiClient
+      .get("/complaint/complaints/")
+      .then((response) => {
         const filteredComplaints = response.data.filter(
-          complaint =>
+          (complaint) =>
             complaint.complaint_type === "consumer" &&
             complaint.department === "bluebrigade"
         );
         setComplaints(filteredComplaints);
       })
-      .catch(error => {
+      .catch((error) => {
         console.error("Error fetching consumer complaints:", error);
       });
   }, []);
@@ -32,7 +33,7 @@ const ConsumerBlueBrigade = () => {
           </tr>
         </thead>
         <tbody>
-          {complaints.map(complaint => (
+          {complaints.map((complaint) => (
             <tr key={complaint.id}>
               <td className="py-2 px-4 border-b">{complaint.ticket_number}</td>
               <td className="py-2 px-4 border-b">{complaint.name}</td>
