@@ -139,19 +139,18 @@ const PrivateRoute = ({ element, requiredPage, requiredAction = 'view' }) => {
     checkAuth();
   }, [requiredPage, requiredAction, location.pathname]);
 
+  // If authentication or permission check is not complete, render nothing (or a minimal placeholder)
   if (isAuthenticated === null || hasPermission === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-[#00334d] text-sm">Loading...</p>
-      </div>
-    );
+    return null; // Avoid rendering anything during auth check
   }
 
+  // Redirect to /login if not authenticated
   if (!isAuthenticated) {
     console.log('Not authenticated, redirecting to /login');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Redirect to / if no permission
   if (!hasPermission) {
     console.warn(`Permission denied for page: ${requiredPage}, action: ${requiredAction}, redirecting to /`);
     return <Navigate to="/" replace />;
