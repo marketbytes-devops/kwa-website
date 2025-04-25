@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import Form from "../../../components/Form";
-import apiClient from "../../../api/apiClient";
 
 const AddValve = () => {
   const initialFields = [
@@ -28,8 +27,11 @@ const AddValve = () => {
       label: "Full Open Condition",
       value: "",
       placeholder: "Enter full open condition",
-      warning: "Please enter the full open condition.",
+      warning: "Please enter a number for full open condition.",
       showWarning: true,
+      step: "0.1",
+      min: "0",
+      max: "1000",
     },
     {
       id: "current_condition",
@@ -37,8 +39,11 @@ const AddValve = () => {
       label: "Current Condition",
       value: "",
       placeholder: "Enter current condition",
-      warning: "Please enter the current condition.",
+      warning: "Please enter a number for current condition.",
       showWarning: true,
+      step: "0.1",
+      min: "0",
+      max: "", 
     },
     {
       id: "remarks",
@@ -50,36 +55,15 @@ const AddValve = () => {
       showWarning: true,
     },
     {
-      id: "previous_position",
-      type: "text",
-      label: "Previous Position",
+      id: "latitude",
+      type: "number",
+      label: "Latitude",
       value: "",
-      placeholder: "Enter previous position",
-      warning: "Please enter the previous position.",
-      showWarning: true,
-    },
-    {
-      id: "location_type",
-      type: "select",
-      label: "Add Valve Location",
-      value: "",
-      options: [
-        { label: "Use Current Location", value: "current" },
-        { label: "Longitude/Latitude", value: "coordinates" },
-      ],
-      warning: "Please select the location type.",
-      showWarning: true,
-    },
-    {
-      id: "location_link",
-      type: "text",
-      label: "Location Link",
-      value: "",
-      placeholder: "Paste Google Maps link here after refining",
-      warning: "Please paste a valid Google Maps link",
+      placeholder: "Enter latitude",
+      warning: "Please enter latitude",
       showWarning: false,
-      hidden: true,
-      readOnly: false,
+      hidden: false,
+      step: "0.000001",
     },
     {
       id: "longitude",
@@ -89,65 +73,34 @@ const AddValve = () => {
       placeholder: "Enter longitude",
       warning: "Please enter longitude",
       showWarning: false,
-      hidden: true,
+      hidden: false,
+      step: "0.000001",
     },
     {
-      id: "latitude",
-      type: "number",
-      label: "Latitude",
-      value: "",
-      placeholder: "Enter latitude",
-      warning: "Please enter latitude",
-      showWarning: false,
-      hidden: true,
+      id: "previous_position",
+      type: "hidden",
+      value: "", // Ensure this field is included
     },
   ];
 
   const [mainSet, setMainSet] = useState(initialFields);
   const [editMode, setEditMode] = useState(false);
-  const [showMapModal, setShowMapModal] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
   const handleFieldChange = (id, value) => {
     setMainSet((prevFields) => {
-      if (id === "location_type") {
-        if (value === "current") {
-          requestLocationPermission();
-          return prevFields.map((field) => {
-            if (field.id === "longitude" || field.id === "latitude") {
-              return { ...field, hidden: true, value: "" };
-            }
-            if (field.id === "location_link") {
-              return { ...field, hidden: false };
-            }
-            if (field.id === "location_type") {
-              return { ...field, value };
-            }
-            return field;
-          });
-        } else if (value === "coordinates") {
-          setShowMapModal(false);
-          setCurrentPosition(null);
-          setLocationError(null);
-          return prevFields.map((field) => {
-            if (field.id === "longitude" || field.id === "latitude") {
-              return { ...field, hidden: false };
-            }
-            if (field.id === "location_link") {
-              return { ...field, hidden: true, value: "" };
-            }
-            if (field.id === "location_type") {
-              return { ...field, value };
-            }
-            return field;
-          });
-        }
-      } else if (id === "location_link" && value) {
+      let updatedFields = prevFields.map((field) =>
+        field.id === id ? { ...field, value } : field
+      );
+
+      if (id === "location_link" && value) {
         const coords = extractCoordsFromUrl(value);
         if (coords) {
           setCurrentPosition(coords);
-          return prevFields.map((field) => {
+          updatedFields = updatedFields.map((field) => {
             if (field.id === "latitude") return { ...field, value: coords.lat.toString() };
             if (field.id === "longitude") return { ...field, value: coords.lng.toString() };
             if (field.id === "location_link") return { ...field, value };
@@ -155,61 +108,23 @@ const AddValve = () => {
           });
         }
       }
-      return prevFields.map((field) =>
-        field.id === id ? { ...field, value } : field
+
+      // Update max for current_condition
+      const fullOpen = updatedFields.find((f) => f.id === "full_open_condition").value;
+      updatedFields = updatedFields.map((field) =>
+        field.id === "current_condition" ? { ...field, max: fullOpen || "1000" } : field
       );
+
+      // Validate current_condition
+      const current = updatedFields.find((f) => f.id === "current_condition").value;
+      if (fullOpen && current && parseFloat(current) > parseFloat(fullOpen)) {
+        setValidationError("Current condition must be less than or equal to full open condition.");
+      } else {
+        setValidationError("");
+      }
+
+      return updatedFields;
     });
-  };
-
-  const requestLocationPermission = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setCurrentPosition({ lat: latitude, lng: longitude });
-          setLocationError(null);
-          updateLocationLink(latitude, longitude);
-          setShowMapModal(true);
-          setMainSet((prevFields) =>
-            prevFields.map((field) =>
-              field.id === "location_type"
-                ? { ...field, value: "current" }
-                : field
-            )
-          );
-        },
-        (error) => {
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              setLocationError("Location permission denied. Please allow location access in your browser settings.");
-              break;
-            case error.POSITION_UNAVAILABLE:
-              setLocationError("Location services are unavailable. Please ensure location is enabled on your device.");
-              break;
-            case error.TIMEOUT:
-              setLocationError("Location request timed out. Please try again.");
-              break;
-            default:
-              setLocationError("An error occurred while accessing location.");
-          }
-          setCurrentPosition(null);
-          setShowMapModal(true);
-        },
-        { timeout: 10000 }
-      );
-    } else {
-      setLocationError("Geolocation is not supported by this browser.");
-      setShowMapModal(true);
-    }
-  };
-
-  const updateLocationLink = (lat, lng) => {
-    const mapsLink = `https://www.google.com/maps?q=${lat},${lng}`;
-    setMainSet((prevFields) =>
-      prevFields.map((field) =>
-        field.id === "location_link" ? { ...field, value: mapsLink } : field
-      )
-    );
   };
 
   const extractCoordsFromUrl = (url) => {
@@ -223,14 +138,51 @@ const AddValve = () => {
     return null;
   };
 
-  const focusOnLocation = () => {
-    if (currentPosition) {
-      const url = `https://www.google.com/maps?q=${currentPosition.lat},${currentPosition.lng}`;
-      window.open(url, "_blank");
-      alert("Please refine the location in Google Maps and paste the updated URL into the Location Link field.");
+  const requestLocationPermission = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setCurrentPosition({ lat: latitude, lng: longitude });
+          setLocationError(null);
+          updateLocationFields(latitude, longitude);
+          setShowMapModal(true);
+        },
+        (error) => {
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              setLocationError("Location permission denied.");
+              break;
+            case error.POSITION_UNAVAILABLE:
+              setLocationError("Location unavailable.");
+              break;
+            case error.TIMEOUT:
+              setLocationError("Location request timed out.");
+              break;
+            default:
+              setLocationError("Error accessing location.");
+          }
+          setCurrentPosition(null);
+          setShowMapModal(true);
+        },
+        { timeout: 10000 }
+      );
     } else {
-      requestLocationPermission();
+      setLocationError("Geolocation is not supported by this browser.");
+      setShowMapModal(true);
     }
+  };
+
+  const updateLocationFields = (lat, lng) => {
+    const mapsLink = `https://www.google.com/maps?q=${lat},${lng}`;
+    setMainSet((prevFields) =>
+      prevFields.map((field) => {
+        if (field.id === "latitude") return { ...field, value: lat.toString() };
+        if (field.id === "longitude") return { ...field, value: lng.toString() };
+        if (field.id === "location_link") return { ...field, value: mapsLink };
+        return field;
+      })
+    );
   };
 
   const copyLocationLink = () => {
@@ -238,6 +190,14 @@ const AddValve = () => {
     if (linkField?.value) {
       navigator.clipboard.writeText(linkField.value);
       alert("Location link copied to clipboard!");
+    }
+  };
+
+  const focusOnLocation = () => {
+    if (currentPosition) {
+      const url = `https://www.google.com/maps?q=${currentPosition.lat},${currentPosition.lng}`;
+      window.open(url, "_blank");
+      alert("Refine location in Google Maps and paste the updated URL.");
     }
   };
 
@@ -283,6 +243,9 @@ const AddValve = () => {
 
   return (
     <div className="pt-14">
+      {validationError && (
+        <div className="text-red-500 text-sm mb-4">{validationError}</div>
+      )}
       <Form
         sectionName="Valve Section"
         dataSets={[
