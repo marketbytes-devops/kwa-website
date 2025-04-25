@@ -1,5 +1,6 @@
 from django.db import models
 import re
+from datetime import date
 
 class Complaint(models.Model):
     STATUS_CHOICES = [
@@ -14,7 +15,7 @@ class Complaint(models.Model):
     complaint_type = models.CharField(max_length=255)
     ticket_number = models.CharField(max_length=255, unique=True, editable=False)
     name = models.CharField(max_length=255)
-    date = models.DateField()
+    date = models.DateField(default=date.today)  
     address = models.TextField()
     phone_number = models.CharField(max_length=15)
     department = models.CharField(max_length=255)
@@ -29,7 +30,7 @@ class Complaint(models.Model):
                 self.serial_no = "001"
 
         if not self.ticket_number:
-            area_code = self.area.area_name[:3].upper()  # Get the first three letters of the area name
+            area_code = self.area.area_name[:3].upper()
             last_ticket = Complaint.objects.filter(area=self.area).order_by('-ticket_number').first()
             if last_ticket and re.match(r'^[A-Z]{3}\d{3}$', last_ticket.ticket_number):
                 ticket_number = int(last_ticket.ticket_number[3:]) + 1

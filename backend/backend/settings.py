@@ -37,6 +37,9 @@ INSTALLED_APPS = [
     'area',
     'complaints',
     'valves',
+    'django_filters',
+    'connectiontype',
+    'conversion',
 ]
 
 MIDDLEWARE = [
