@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import apiClient from '../../../api/apiClient';
 import { Eye, EyeOff } from 'lucide-react';
-import authBg from '../../../assets/images/auth.webp';
+import authBg from '../../../assets/images/water.jpeg';
 
 const Login = () => {
   const [loginData, setLoginData] = useState({
@@ -139,68 +139,49 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-4xl flex rounded-xl shadow-lg overflow-hidden">
-        <div
-          className="hidden md:block w-1/2 bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${authBg})`,
-            objectFit: 'fill',
-            backgroundRepeat: 'no-repeat',
-            backgroundSize: 'contain',
-          }}
-        ></div>
-        <div className="w-full md:w-1/2 p-8 bg-transparent">
-          <h1 className="text-xl font-semibold text-gray-800 mb-6">Login</h1>
-          <p className="text-xs text-gray-800 mb-8">
-            Enter your credentials to access your account.
-          </p>
-          {warnings.general && (
-            <p className="text-xs text-red-500 mb-4">{warnings.general}</p>
-          )}
+    <div className="min-h-screen flex items-center justify-center bg-gray-50"           style={{
+      backgroundImage: `url(${authBg})`,
+      objectFit: 'fill',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: 'cover',
+      backgroundPosition:"center 30%"
+    }}>
+      <div className="w-full max-w-md flex rounded-xl shadow-lg overflow-hidden">
+        <div className="w-full p-8 bg-white">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Login</h1>
+          <p className="text-sm text-gray-600 mb-6">Enter your credentials to access your account.</p>
+          {warnings.general && <p className="text-sm text-red-500 mb-4">{warnings.general}</p>}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-xs text-gray-800 mb-2">
-                Email address
-              </label>
+              <label className="block text-sm text-gray-700 mb-2">Email or phone number</label>
               <input
-                type="email"
+                type="text"
                 name="email"
                 value={loginData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition-all duration-200 bg-gray-100 hover:bg-gray-50"
-                placeholder="Email address"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your email or phone number"
               />
-              {warnings.email && (
-                <p className="text-xs text-red-500 mt-1">{warnings.email}</p>
-              )}
+              {warnings.email && <p className="text-sm text-red-500 mt-1">{warnings.email}</p>}
             </div>
             <div className="relative">
-              <label className="block text-xs text-gray-800 mb-2">
-                Password
-              </label>
+              <label className="block text-sm text-gray-700 mb-2">Password</label>
               <input
                 type={showPassword ? 'text' : 'password'}
                 name="password"
                 value={loginData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition-all duration-200 bg-gray-100 hover:bg-gray-50 pr-10"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
                 placeholder="Enter password"
               />
               <button
                 type="button"
                 onClick={togglePasswordVisibility}
-                className="absolute right-2 top-1/2 transform -translate-y-1.5 mt-2 text-gray-600 hover:text-gray-800"
+                className="absolute right-2 top-[48px] transform -translate-y-1/2 text-gray-600 hover:text-gray-800"
               >
-                {showPassword ? (
-                  <EyeOff size={18} strokeWidth={1.5} />
-                ) : (
-                  <Eye size={18} strokeWidth={1.5} />
-                )}
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
-              {warnings.password && (
-                <p className="text-xs text-red-500 mt-1">{warnings.password}</p>
-              )}
+              {warnings.password && <p className="text-sm text-red-500 mt-1">{warnings.password}</p>}
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -211,25 +192,17 @@ const Login = () => {
                   onChange={handleChange}
                   className="h-4 w-4 border-gray-300 rounded"
                 />
-                <label className="ml-2 block text-xs text-gray-800">
-                  Remember me
-                </label>
+                <label className="ml-2 text-sm text-gray-700">Remember me</label>
               </div>
-              <Link
-                to="/forgot-password"
-                className="text-xs text-gray-800 hover:underline"
-              >
-                Forgot Password?
-              </Link>
+              <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">Forgot Password?</Link>
             </div>
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                className="w-full px-6 py-2 bg-blue-200 text-blue-800 hover:text-gray-800 hover:bg-gray-200 text-sm font-medium rounded-sm transition-all duration-300"
-              >
-                Login
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Continue
+            </button>
+            <p className="text-xs text-gray-500 text-center">By continuing, you agree to our <a href="#" className="text-blue-600 hover:underline">privacy policy</a> and <a href="#" className="text-blue-600 hover:underline">terms of use</a></p>
           </form>
         </div>
       </div>

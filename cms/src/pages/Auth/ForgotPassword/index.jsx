@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import apiClient from '../../../api/apiClient';
-import authBg from "../../../assets/images/auth.webp";
+import authBg from "../../../assets/images/water.jpeg";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -42,36 +42,38 @@ const ForgotPassword = () => {
   };
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-4xl flex rounded-xl shadow-lg overflow-hidden">
-        <div className="hidden md:block w-1/2 bg-cover bg-center" style={{ backgroundImage: `url(${authBg})`, objectFit: "fill", backgroundRepeat: "no-repeat", backgroundSize: "contain" }}></div>
-        <div className="w-full md:w-1/2 p-8 bg-transparent">
-          <h1 className="text-xl font-semibold text-gray-800 mb-6">Forgot Password</h1>
-          <p className="text-xs text-gray-800 mb-8">
-            Enter your email address to receive an OTP for password reset.
-          </p>
-          {warning && <p className="text-xs text-red-500 mb-4">{warning}</p>}
-          {success && <p className="text-xs text-green-500 mb-4">{success}</p>}
+    <div className="min-h-screen flex items-center justify-center bg-gray-50"           style={{
+      backgroundImage: `url(${authBg})`,
+      objectFit: 'fill',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: 'cover',
+      backgroundPosition:"center 30%"
+    }}>
+      <div className="w-full max-w-md flex rounded-xl shadow-lg overflow-hidden">
+        <div className="w-full p-8 bg-white">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Forgot Password</h1>
+          <p className="text-sm text-gray-600 mb-6">Enter your email address to receive an OTP for password reset.</p>
+          {warning && <p className="text-sm text-red-500 mb-4">{warning}</p>}
+          {success && <p className="text-sm text-green-500 mb-4">{success}</p>}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-xs text-gray-800 mb-2">Email address</label>
+              <label className="block text-sm text-gray-700 mb-2">Email address</label>
               <input
                 type="email"
                 name="email"
                 value={email}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition-all duration-200 bg-gray-100 hover:bg-gray-50"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Email address"
               />
             </div>
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                className="w-full px-6 py-2 bg-blue-200 text-blue-800 hover:text-gray-800 hover:bg-gray-200 text-sm font-medium rounded-sm transition-all duration-300"
-              >
-                Send OTP
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Send OTP
+            </button>
+            <p className="text-xs text-gray-500 text-center">By continuing, you agree to our <a href="#" className="text-blue-600 hover:underline">privacy policy</a> and <a href="#" className="text-blue-600 hover:underline">terms of use</a></p>
           </form>
         </div>
       </div>

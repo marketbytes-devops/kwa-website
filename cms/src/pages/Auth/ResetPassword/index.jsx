@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import apiClient from '../../../api/apiClient';
 import { Eye, EyeOff } from 'lucide-react'; 
-import authBg from "../../../assets/images/auth.webp";
+import authBg from '../../../assets/images/water.jpeg';
 
 const ResetPassword = () => {
   const [passwordData, setPasswordData] = useState({
@@ -77,71 +77,65 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-4xl flex rounded-xl shadow-lg overflow-hidden">
-        <div className="hidden md:block w-1/2 bg-cover bg-center" style={{ backgroundImage: `url(${authBg})`, objectFit: "fill", backgroundRepeat: "no-repeat", backgroundSize: "contain" }}></div>
-        <div className="w-full md:w-1/2 p-8 bg-transparent">
-          <h1 className="text-xl font-semibold text-gray-800 mb-6">Reset Password</h1>
-          <p className="text-xs text-gray-800 mb-8">
-            Set a new password for your account ({email || 'your email'}).
-          </p>
-          {warnings.general && <p className="text-xs text-red-500 mb-4">{warnings.general}</p>}
-          {success && <p className="text-xs text-green-500 mb-4">{success}</p>}
+    <div className="min-h-screen flex items-center justify-center bg-gray-50"           style={{
+      backgroundImage: `url(${authBg})`,
+      objectFit: 'fill',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: 'cover',
+      backgroundPosition:"center 30%"
+    }}>
+      <div className="w-full max-w-md flex rounded-xl shadow-lg overflow-hidden">
+        <div className="w-full p-8 bg-white">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h1>
+          <p className="text-sm text-gray-600 mb-6">Set a new password for your account ({email || 'your email'}).</p>
+          {warnings.general && <p className="text-sm text-red-500 mb-4">{warnings.general}</p>}
+          {success && <p className="text-sm text-green-500 mb-4">{success}</p>}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="relative">
-              <label className="block text-xs text-gray-800 mb-2">New Password</label>
+              <label className="block text-sm text-gray-700 mb-2">New Password</label>
               <input
                 type={showPasswords.newPassword ? 'text' : 'password'}
                 name="newPassword"
                 value={passwordData.newPassword}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition-all duration-200 bg-gray-100 hover:bg-gray-50 pr-10"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
                 placeholder="Enter new password"
               />
               <button
                 type="button"
                 onClick={() => togglePasswordVisibility('newPassword')}
-                className="absolute right-2 top-1/2 transform -translate-y-1.5 mt-2 text-gray-600 hover:text-gray-800"
+                className="absolute right-2 top-[48px] transform -translate-y-1/2 text-gray-600 hover:text-gray-800"
               >
-                {showPasswords.newPassword ? (
-                  <EyeOff size={18} strokeWidth={1.5} />
-                ) : (
-                  <Eye size={18} strokeWidth={1.5} />
-                )}
+                {showPasswords.newPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
-              {warnings.newPassword && <p className="text-xs text-red-500 mt-1">{warnings.newPassword}</p>}
+              {warnings.newPassword && <p className="text-sm text-red-500 mt-1">{warnings.newPassword}</p>}
             </div>
             <div className="relative">
-              <label className="block text-xs text-gray-800 mb-2">Confirm New Password</label>
+              <label className="block text-sm text-gray-700 mb-2">Confirm New Password</label>
               <input
                 type={showPasswords.confirmNewPassword ? 'text' : 'password'}
                 name="confirmNewPassword"
                 value={passwordData.confirmNewPassword}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition-all duration-200 bg-gray-100 hover:bg-gray-50 pr-10"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
                 placeholder="Re-enter new password"
               />
               <button
                 type="button"
                 onClick={() => togglePasswordVisibility('confirmNewPassword')}
-                className="absolute right-2 top-1/2 transform -translate-y-1.5 mt-2 text-gray-600 hover:text-gray-800"
+                className="absolute right-2 top-[48px] transform -translate-y-1/2 text-gray-600 hover:text-gray-800"
               >
-                {showPasswords.confirmNewPassword ? (
-                  <EyeOff size={18} strokeWidth={1.5} />
-                ) : (
-                  <Eye size={18} strokeWidth={1.5} />
-                )}
+                {showPasswords.confirmNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
-              {warnings.confirmNewPassword && <p className="text-xs text-red-500 mt-1">{warnings.confirmNewPassword}</p>}
+              {warnings.confirmNewPassword && <p className="text-sm text-red-500 mt-1">{warnings.confirmNewPassword}</p>}
             </div>
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                className="w-full px-6 py-2 bg-blue-200 text-blue-800 hover:text-gray-800 hover:bg-gray-200 text-sm font-medium rounded-sm transition-all duration-300"
-              >
-                Reset Password
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Reset Password
+            </button>
+            <p className="text-xs text-gray-500 text-center">By continuing, you agree to our <a href="#" className="text-blue-600 hover:underline">privacy policy</a> and <a href="#" className="text-blue-600 hover:underline">terms of use</a></p>
           </form>
         </div>
       </div>
