@@ -26,4 +26,6 @@ urlpatterns = [
     path('api/complaint/', include('complaints.urls')),
     path('documentation/', include('documentation.urls')),
     path('api/valve/', include('valves.urls')),
+    path('api/connectiontype/', include('connectiontype.urls')),
+    path('api/conversion/', include('conversion.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

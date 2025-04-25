@@ -6,7 +6,7 @@ class ComplaintAdmin(admin.ModelAdmin):
     list_display = ('serial_no', 'ticket_number', 'name', 'area', 'department', 'status', 'date')
     list_filter = ('status', 'area', 'department', 'date')
     search_fields = ('serial_no', 'ticket_number', 'name', 'phone_number', 'department')
-    readonly_fields = ('serial_no', 'ticket_number')  # These fields are auto-generated and should not be edited manually
+    readonly_fields = ('serial_no', 'ticket_number') 
     ordering = ('-date',)
 
     fieldsets = (

@@ -1,10 +1,10 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ValveViewSet, ValveLogViewSet  # Import ValveLogViewSet
+from .views import ValveViewSet, ValveLogViewSet
 
 router = DefaultRouter()
 router.register(r'valves', ValveViewSet)
-router.register(r'logs', ValveLogViewSet)  # Add this line for logs
+router.register(r'logs', ValveLogViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
