@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: "https://www.oandmkwa.com/api",
+  baseURL: "https://backend.oandmkwa.com/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -36,7 +36,7 @@ apiClient.interceptors.response.use(
           throw new Error("No refresh token available");
         }
         const response = await axios.post(
-          "https://www.oandmkwa.com/api/token/refresh/",
+          "https://backend.oandmkwa.com/api/token/refresh/",
           {
             refresh: refreshToken,
           }
