@@ -2,6 +2,7 @@ import axios from "axios";
 
 const apiClient = axios.create({
   baseURL: "https://backend.oandmkwa.com/api",
+  timeout: 1000,
   headers: {
     "Content-Type": "application/json",
   },
