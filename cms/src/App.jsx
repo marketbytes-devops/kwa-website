@@ -33,8 +33,8 @@ import ConnectionType from './pages/Main/Etapp/ConnectionType';
 import ViewConnection from './pages/Main/Etapp/ViewConnection';
 import ViewConversion from './pages/Main/Etapp/ViewConversion';
 import { useEffect, useState } from 'react';
-import GeneralBlueBrigade from './pages/Main/Bluebrigade/General';
-import ConsumerBlueBrigade from './pages/Main/Bluebrigade/consumer';
+import GeneralBlueBrigade from './pages/Main/Bluebrigade/gggg';
+import ConsumerBlueBrigade from './pages/Main/Bluebrigade/ccc';
 
 const DashboardPage = () => (
   <div className="mt-14">
