@@ -13,7 +13,6 @@ const AddComplaint = () => {
       showWarning: true,
       options: [],
     },
-
     {
       id: "complaint_type",
       type: "select",
@@ -26,21 +25,12 @@ const AddComplaint = () => {
         { value: "consumer", label: "Consumer" },
       ],
     },
-
     {
       id: "name",
       type: "text",
       label: "Name",
       value: "",
       warning: "Please enter your name.",
-      showWarning: true,
-    },
-    {
-      id: "date",
-      type: "date",
-      label: "Date",
-      value: "",
-      warning: "Please enter the date.",
       showWarning: true,
     },
     {
@@ -77,19 +67,20 @@ const AddComplaint = () => {
   const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
-    apiClient.get('/area/add-area/')
-      .then(response => {
-        const areas = response.data.map(area => ({
+    apiClient
+      .get("/area/add-area/")
+      .then((response) => {
+        const areas = response.data.map((area) => ({
           value: area.id,
           label: area.area_name,
         }));
-        setMainSet(prevFields =>
-          prevFields.map(field =>
+        setMainSet((prevFields) =>
+          prevFields.map((field) =>
             field.id === "area" ? { ...field, options: areas } : field
           )
         );
       })
-      .catch(error => {
+      .catch((error) => {
         console.error("Error fetching areas:", error);
       });
   }, []);

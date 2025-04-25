@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, Settings, User, LogOut } from 'lucide-react'; 
+import { Text, Settings, User, LogOut, Bell } from 'lucide-react'; 
 import { useLocation, useNavigate } from 'react-router';
 import apiClient from '../../api/apiClient';
 
@@ -53,20 +53,12 @@ const Topbar = ({ toggleSidebar, userAvatar, username }) => {
             strokeWidth={1.5} 
           />
         </button>
-        <div className="relative ml-4">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={handleSearchChange}
-            placeholder="Search here..."
-            className="w-64 px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition-all duration-200 bg-gray-100 hover:bg-gray-50"
-          />
-        </div>
         <div className="ml-4 text-sm font-medium text-gray-800">
           {getPageName()}
         </div>
       </div>
       <div className="relative flex items-center mr-12">
+      
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           className="p-2 rounded-xs transition-all duration-200 relative overflow-hidden group"

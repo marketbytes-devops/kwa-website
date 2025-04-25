@@ -80,6 +80,7 @@ const Form = ({ dataSets, editMode, setEditMode, sectionName, apiEndpoint, ident
   const [individualEdit, setIndividualEdit] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [newEntries, setNewEntries] = useState([]);
+  const [validationError, setValidationError] = useState("");
   const rowsPerPage = 4;
   const charLimit = 50;
 
@@ -118,30 +119,56 @@ const Form = ({ dataSets, editMode, setEditMode, sectionName, apiEndpoint, ident
   };
 
   const handleNewEntryChange = (entryIndex, fieldId, value) => {
-    setNewEntries((prev) => prev.map((entry, idx) => idx === entryIndex ? entry.map((field) => field.id === fieldId ? { ...field, value } : field) : entry));
+    setNewEntries((prev) => prev.map((entry, idx) => {
+      if (idx !== entryIndex) return entry;
+      const updatedEntry = entry.map((field) => field.id === fieldId ? { ...field, value } : field);
+      const fullOpen = updatedEntry.find((f) => f.id === "full_open_condition")?.value;
+      const current = updatedEntry.find((f) => f.id === "current_condition")?.value;
+      if (fullOpen && current && parseFloat(current) > parseFloat(fullOpen)) {
+        setValidationError("Current condition must be less than or equal to full open condition.");
+      } else {
+        setValidationError("");
+      }
+      return updatedEntry;
+    }));
   };
 
   const handleRemoveNewEntry = (entryIndex) => {
     setNewEntries((prev) => prev.filter((_, idx) => idx !== entryIndex));
+    setValidationError("");
   };
 
   const handleIndividualEdit = (itemIdentifier, fieldId, currentValue) => {
     const item = data.find((i) => i[identifierField] === itemIdentifier);
     const field = dataSets.flatMap((set) => set.fields).find((f) => f.id === fieldId);
-    setIndividualEdit({ itemIdentifier, field: { ...field, value: currentValue } });
+    const max = fieldId === "current_condition" ? item.full_open_condition : field.max;
+    setIndividualEdit({ itemIdentifier, field: { ...field, value: currentValue, max } });
     setEditMode(true);
     formRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleIndividualFieldChange = (id, value) => {
-    setIndividualEdit((prev) => ({ ...prev, field: { ...prev.field, value } }));
+    setIndividualEdit((prev) => {
+      const updatedField = { ...prev.field, value };
+      const item = data.find((i) => i[identifierField] === prev.itemIdentifier);
+      if (id === "current_condition") {
+        const fullOpen = item.full_open_condition;
+        if (value && parseFloat(value) > parseFloat(fullOpen)) {
+          setValidationError("Current condition must be less than or equal to full open condition.");
+        } else {
+          setValidationError("");
+        }
+      }
+      return { ...prev, field: updatedField };
+    });
   };
 
   const handleIndividualSubmit = async (event) => {
     event.preventDefault();
-    if (!individualEdit) return;
+    if (!individualEdit || validationError) return;
     const formData = new FormData();
-    formData.append(individualEdit.field.id, individualEdit.field.value || "");
+    const value = individualEdit.field.type === "number" ? (individualEdit.field.value || "0") : (individualEdit.field.value || "");
+    formData.append(individualEdit.field.id, value);
     try {
       const response = await apiClient.patch(`${apiEndpoint}${individualEdit.itemIdentifier}/`, formData, { headers: { "Content-Type": "multipart/form-data" } });
       setData((prevData) => prevData.map((item) => item[identifierField] === individualEdit.itemIdentifier ? response.data : item));
@@ -161,11 +188,18 @@ const Form = ({ dataSets, editMode, setEditMode, sectionName, apiEndpoint, ident
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSubmitted(true);
+    if (validationError) return;
+
     if (newEntries.length > 0) {
       try {
         const responses = await Promise.all(newEntries.map(async (entry) => {
           const formData = new FormData();
-          entry.forEach((field) => { if (!field.hidden) formData.append(field.id, field.value || ""); });
+          entry.forEach((field) => {
+            if (!field.hidden) {
+              const value = field.type === "number" ? (field.value || "0") : (field.value || "");
+              formData.append(field.id, value);
+            }
+          });
           return apiClient.post(apiEndpoint, formData, { headers: { "Content-Type": "multipart/form-data" } });
         }));
         setData((prevData) => [...prevData, ...responses.map((res) => res.data)]);
@@ -181,7 +215,14 @@ const Form = ({ dataSets, editMode, setEditMode, sectionName, apiEndpoint, ident
       }
     } else if (currentEditId !== null) {
       const formData = new FormData();
-      dataSets.forEach(({ fields }) => { fields.forEach((field) => { if (!field.hidden) formData.append(field.id, field.value || ""); }); });
+      dataSets.forEach(({ fields }) => {
+        fields.forEach((field) => {
+          if (!field.hidden) {
+            const value = field.type === "number" ? (field.value || "0") : (field.value || "");
+            formData.append(field.id, value);
+          }
+        });
+      });
       try {
         const response = await apiClient.put(`${apiEndpoint}${currentEditId}/`, formData, { headers: { "Content-Type": "multipart/form-data" } });
         setData((prevData) => prevData.map((item) => item[identifierField] === currentEditId ? response.data : item));
@@ -198,11 +239,20 @@ const Form = ({ dataSets, editMode, setEditMode, sectionName, apiEndpoint, ident
       }
     } else {
       const formData = new FormData();
-      dataSets.forEach(({ fields }) => { fields.forEach((field) => { if (!field.hidden) formData.append(field.id, field.value || ""); }); });
+      dataSets.forEach(({ fields }) => {
+        fields.forEach((field) => {
+          if (!field.hidden) {
+            const value = field.type === "number" ? (field.value || "0") : (field.value || "");
+            formData.append(field.id, value);
+          }
+        });
+      });
       try {
         const response = await apiClient.post(apiEndpoint, formData, { headers: { "Content-Type": "multipart/form-data" } });
         setData((prevData) => [...prevData, response.data]);
-        dataSets.forEach(({ setFields }) => { setFields((fields) => fields.map((field) => ({ ...field, value: field.type === "image" ? null : "" }))); });
+        dataSets.forEach(({ setFields }) => {
+          setFields((fields) => fields.map((field) => ({ ...field, value: field.type === "image" ? null : "" })));
+        });
         setModalTitle("Success");
         setModalMessage("Entry added successfully.");
         setIsModalOpen(true);
@@ -250,7 +300,11 @@ const Form = ({ dataSets, editMode, setEditMode, sectionName, apiEndpoint, ident
 
   const handleEdit = (item) => {
     dataSets.forEach(({ fields, setFields }) => {
-      setFields(fields.map((field) => ({ ...field, value: item[field.id] || (field.type === "image" ? null : "") })));
+      setFields(fields.map((field) => ({
+        ...field,
+        value: item[field.id] || (field.type === "image" ? null : ""),
+        max: field.id === "current_condition" ? item.full_open_condition : field.max
+      })));
     });
     setCurrentEditId(item[identifierField]);
     setEditMode(true);
@@ -266,6 +320,7 @@ const Form = ({ dataSets, editMode, setEditMode, sectionName, apiEndpoint, ident
     setEditMode(false);
     setIsSubmitted(false);
     setNewEntries([]);
+    setValidationError("");
   };
 
   const handleCloseModal = () => {
@@ -289,13 +344,16 @@ const Form = ({ dataSets, editMode, setEditMode, sectionName, apiEndpoint, ident
       <div className="min-h-screen flex items-start justify-center p-4 bg-transparent">
         <div className="w-full space-y-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-6">{sectionName}</h2>
+          {validationError && (
+            <div className="text-red-500 text-sm mb-4">{validationError}</div>
+          )}
           {individualEdit ? (
             <form onSubmit={handleIndividualSubmit} ref={formRef} className="space-y-6">
-              <div className="mb-">
+              <div className="mb-4">
                 <FieldRenderer field={individualEdit.field} setFields={(fields) => fields.map((f) => f.id === individualEdit.field.id ? { ...f, value: individualEdit.field.value } : f)} onChange={handleIndividualFieldChange} isSubmitted={isSubmitted} />
               </div>
               <div className="flex space-x-4 justify-start">
-                <motion.button whileTap={{ scale: 0.95 }} type="submit" className="min-w-xs px-6 py-2 bg-blue-200 text-blue-800 hover:text-gray-800 hover:bg-gray-200 text-sm font-medium rounded-lg transition-all duration-300 flex items-center justify-center">
+                <motion.button whileTap={{ scale: 0.95 }} type="submit" className="min-w-xs px-6 py-2 bg-blue-200 text-blue-800 hover:text-gray-800 hover:bg-gray-200 text-sm font-medium rounded-lg transition-all duration-300 flex items-center justify-center" disabled={!!validationError}>
                   <SaveIcon size={18} strokeWidth={1.5} />
                   <span className="ml-1">Update Field</span>
                 </motion.button>
@@ -389,7 +447,7 @@ const Form = ({ dataSets, editMode, setEditMode, sectionName, apiEndpoint, ident
                     <span className="ml-1">Add Item</span>
                   </motion.button>
                 )}
-                <motion.button whileTap={{ scale: 0.95 }} type="submit" className="min-w-xs px-2 py-2 bg-blue-200 text-blue-800 hover:text-gray-800 hover:bg-gray-200 text-sm font-medium rounded-lg transition-all duration-300 flex items-center justify-center" aria-label="Save Form">
+                <motion.button whileTap={{ scale: 0.95 }} type="submit" className="min-w-xs px-2 py-2 bg-blue-200 text-blue-800 hover:text-gray-800 hover:bg-gray-200 text-sm font-medium rounded-lg transition-all duration-300 flex items-center justify-center" aria-label="Save Form" disabled={!!validationError}>
                   <SaveIcon size={18} strokeWidth={1.5} />
                   <span className="ml-1">{editMode && currentEditId !== null ? "Update" : "Save"}</span>
                 </motion.button>
