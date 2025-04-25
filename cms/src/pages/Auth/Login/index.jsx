@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import apiClient from '../../../api/apiClient';
 import { Eye, EyeOff } from 'lucide-react';
-import authBg from '../../../assets/images/water.jpeg';
+import authBg from '../../../assets/images/water.webp';
 
 const Login = () => {
   const [loginData, setLoginData] = useState({
