@@ -1,10 +1,12 @@
 from django.urls import path
-from .views import (
+from authapp.views import (
     LoginView, LogoutView, ProfileView, ForgotPasswordView, OTPVerificationView,
     ResetPasswordView, ChangePasswordView, RoleView, RoleDetailView,
     PermissionView, PermissionDetailView, UserManagementView, UserDetailView,
     CustomTokenObtainPairView, PermissionListView
 )
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
@@ -22,4 +24,4 @@ urlpatterns = [
     path('permissions/<int:pk>/', PermissionDetailView.as_view(), name='permission_detail'),
     path('users/', UserManagementView.as_view(), name='user_management'),
     path('users/<int:pk>/', UserDetailView.as_view(), name='user_detail'),
-]
+]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

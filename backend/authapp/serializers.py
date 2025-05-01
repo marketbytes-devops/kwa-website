@@ -29,11 +29,21 @@ class UserSerializer(serializers.ModelSerializer):
     role_id = serializers.PrimaryKeyRelatedField(
         queryset=Role.objects.all(), source='role', write_only=True, required=False
     )
+    avatar = serializers.ImageField(required=False, allow_empty_file=True)
 
     class Meta:
         model = User
         fields = ('id', 'email', 'username', 'first_name', 'last_name', 'avatar', 'role', 'role_id')
         read_only_fields = ('id',)
+
+    def update(self, instance, validated_data):
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.email = validated_data.get('email', instance.email)
+        instance.username = validated_data.get('username', instance.username)
+        instance.avatar = validated_data.get('avatar', instance.avatar)
+        instance.save()
+        return instance
 
 class UserCreateSerializer(serializers.ModelSerializer):
     role_id = serializers.PrimaryKeyRelatedField(
@@ -45,17 +55,14 @@ class UserCreateSerializer(serializers.ModelSerializer):
         fields = ('email', 'username', 'first_name', 'last_name', 'avatar', 'role_id')
  
     def create(self, validated_data):
-        # Generate a random password
         password_length = 12
         characters = string.ascii_letters + string.digits + string.punctuation
         random_password = ''.join(random.choice(characters) for _ in range(password_length))
  
-        # Create user
         user = User(**validated_data)
         user.set_password(random_password)
         user.save()
  
-        # Send email with credentials
         subject = 'Your Account Credentials'
         message = (
             f'Hello {user.first_name},\n\n'
@@ -77,7 +84,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 fail_silently=False,
             )
         except Exception as e:
-            # Log the error but don't fail user creation
             print(f"Failed to send email: {str(e)}")
  
         return user
