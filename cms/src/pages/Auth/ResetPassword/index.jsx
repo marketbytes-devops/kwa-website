@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import apiClient from '../../../api/apiClient';
 import { Eye, EyeOff } from 'lucide-react'; 
-import authBg from "../../../assets/images/waterlog.jpg";
+import authBg from "../../../assets/images/Waterlog.jpg";
 
 const ResetPassword = () => {
   const [passwordData, setPasswordData] = useState({
