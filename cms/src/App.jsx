@@ -22,6 +22,8 @@ import AddComplaint from './pages/Main/Complaint/AddComplaint';
 import ViewComplaint from './pages/Main/Complaint/ViewComplaint';
 import Area from './pages/Main/Area/Area';
 import { AlertProvider } from './context/AlertContext';
+import Consumer from './pages/Main/Bluebrigade/Consumer';
+import General from './pages/Main/Bluebrigade/General';
 import Flows from './pages/Main/Flows';
 import AddValves from './pages/Main/Valves/AddValves';
 import RCconsumer from './pages/Main/Runningcontract/RCconsumer';
@@ -33,8 +35,6 @@ import ConnectionType from './pages/Main/Etapp/ConnectionType';
 import ViewConnection from './pages/Main/Etapp/ViewConnection';
 import ViewConversion from './pages/Main/Etapp/ViewConversion';
 import { useEffect, useState } from 'react';
-import GeneralBlueBrigade from './pages/Main/Bluebrigade/General';
-import ConsumerBlueBrigade from './pages/Main/Bluebrigade/Consumer';
 
 const DashboardPage = () => (
   <div className="mt-14">
@@ -69,7 +69,7 @@ const PermissionsPage = () => (
 const PrivateRoute = ({ element, requiredPage, requiredAction = 'view' }) => {
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(null);
-  const [hasPermission, setHasPermission] = useState(null);
+  const [permissions, setPermissions] = useState({});
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -85,49 +85,38 @@ const PrivateRoute = ({ element, requiredPage, requiredAction = 'view' }) => {
 
       try {
         const response = await apiClient.get('/auth/profile/');
-        setIsAuthenticated(true);
         const user = response.data;
         console.log('User Data:', user);
-        console.log('Checking permissions for:', { requiredPage, requiredAction, path: location.pathname });
+
+        setIsAuthenticated(true);
 
         if (user.is_superuser || user.role?.name === 'Superadmin') {
-          console.log('User is superadmin, granting access');
-          setHasPermission(true);
-          return;
-        }
-
-        if (!requiredPage) {
-          console.log('No required page, granting access');
-          setHasPermission(true);
+          console.log('User is superadmin, granting all access');
+          setPermissions({ can_view: true, can_add: true, can_edit: true, can_delete: true });
           return;
         }
 
         const roleId = user.role?.id;
         if (!roleId) {
-          console.log('No role ID, denying access');
-          setHasPermission(false);
+          console.warn('No role ID found, denying access');
+          setPermissions({});
           return;
         }
 
         try {
           const roleResponse = await apiClient.get(`/auth/roles/${roleId}/`);
-          const permissions = roleResponse.data.permissions || [];
-          console.log('Permissions:', permissions);
-          const perm = permissions.find((p) => p.page === requiredPage);
-          console.log('Found Permission:', perm);
-          const hasPerm = perm && perm[`can_${requiredAction}`];
-          console.log('Has Permission:', hasPerm);
-          setHasPermission(hasPerm);
+          const perms = roleResponse.data.permissions || [];
+          console.log(`Permissions for role ${roleId}:`, perms);
+          const pagePerm = perms.find((p) => p.page === requiredPage);
+          const permObj = pagePerm || { can_view: false, can_add: false, can_edit: false, can_delete: false };
+          console.log(`Permission for ${requiredPage}:`, permObj);
+          setPermissions(permObj);
         } catch (error) {
           console.error('Role fetch error:', error.response?.status, error.response?.data);
-          if (error.response?.status === 403 || error.response?.status === 401) {
-            setHasPermission(false);
-          } else {
-            throw error;
-          }
+          setPermissions({});
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
+        console.error('Auth check failed:', error.response?.status, error.response?.data);
         setIsAuthenticated(false);
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
@@ -137,21 +126,22 @@ const PrivateRoute = ({ element, requiredPage, requiredAction = 'view' }) => {
     };
 
     checkAuth();
-  }, [requiredPage, requiredAction, location.pathname]);
+  }, [requiredPage, location.pathname]);
 
-  // If authentication or permission check is not complete, render nothing (or a minimal placeholder)
-  if (isAuthenticated === null || hasPermission === null) {
-    return null; // Avoid rendering anything during auth check
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-[#00334d] text-sm">Loading...</p>
+      </div>
+    );
   }
 
-  // Redirect to /login if not authenticated
   if (!isAuthenticated) {
     console.log('Not authenticated, redirecting to /login');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Redirect to / if no permission
-  if (!hasPermission) {
+  if (!permissions[`can_${requiredAction}`]) {
     console.warn(`Permission denied for page: ${requiredPage}, action: ${requiredAction}, redirecting to /`);
     return <Navigate to="/" replace />;
   }
@@ -224,11 +214,11 @@ const router = createBrowserRouter([
       },
       {
         path: '/bluebrigade/consumer',
-        element: <PrivateRoute element={<ConsumerBlueBrigade />} requiredPage="bluebrigade" />,
+        element: <PrivateRoute element={<Consumer />} requiredPage="bluebrigade" />,
       },
       {
         path: '/bluebrigade/general',
-        element: <PrivateRoute element={<GeneralBlueBrigade />} requiredPage="bluebrigade" />,
+        element: <PrivateRoute element={<General />} requiredPage="bluebrigade" />,
       },
       {
         path: '/runningcontract/rcconsumer',
@@ -251,23 +241,23 @@ const router = createBrowserRouter([
         element: <PrivateRoute element={<PermissionsPage />} requiredPage="permission" />,
       },
       {
-        path: '/e-tap/connection/type',
+        path: '/e-tapp/connection/type',
         element: <PrivateRoute element={<ConnectionType />} requiredPage="e-tapp" requiredAction="view" />,
       },
       {
-        path: '/e-tap/connection/add',
+        path: '/e-tapp/connection/add',
         element: <PrivateRoute element={<AddConnection />} requiredPage="e-tapp" requiredAction="add" />,
       },
       {
-        path: '/e-tap/connection/view',
+        path: '/e-tapp/connection/view',
         element: <PrivateRoute element={<ViewConnection />} requiredPage="e-tapp" requiredAction="view" />,
       },
       {
-        path: '/e-tap/conversion/add',
+        path: '/e-tapp/conversion/add',
         element: <PrivateRoute element={<AddConversion />} requiredPage="e-tapp" requiredAction="add" />,
       },
       {
-        path: '/e-tap/conversion/view',
+        path: '/e-tapp/conversion/view',
         element: <PrivateRoute element={<ViewConversion />} requiredPage="e-tapp" requiredAction="view" />,
       },
       {
