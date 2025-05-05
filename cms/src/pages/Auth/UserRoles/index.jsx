@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../../api/apiClient';
 
 const UserRoles = () => {
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [permissions, setPermissions] = useState([]); 
+  const [hasDeletePermission, setHasDeletePermission] = useState(true); 
+  const [roleId, setRoleId] = useState(null); 
   const [formData, setFormData] = useState({
     id: null,
     email: '',
@@ -22,34 +26,116 @@ const UserRoles = () => {
   });
   const [success, setSuccess] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRoleId, setSelectedRoleId] = useState('');
+
+  const fetchRoles = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/auth/roles/');
+      setRoles(response.data || []);
+    } catch (error) {
+      if (error.response?.status === 403) {
+        console.warn('User lacks permission to fetch roles');
+        setRoles([]);
+      } else {
+        console.error('Failed to fetch roles:', error);
+        setWarnings({
+          ...warnings,
+          general: 'Failed to fetch roles. Please try again.',
+        });
+      }
+    }
+  }, [warnings]);
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/auth/users/');
+      setUsers(response.data || []);
+      setFilteredUsers(response.data || []);
+    } catch (error) {
+      if (error.response?.status === 403) {
+        console.warn('User lacks permission to fetch users');
+        setUsers([]);
+        setFilteredUsers([]);
+      } else {
+        console.error('Failed to fetch users:', error);
+        setWarnings({
+          ...warnings,
+          general: 'Failed to fetch users. Please try again.',
+        });
+      }
+    }
+  }, [warnings]);
+
+  const fetchProfile = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/auth/profile/');
+      setRoleId(response.data.role?.id || null);
+    } catch (error) {
+      console.error('Failed to fetch profile:', error);
+      setWarnings({
+        ...warnings,
+        general: 'Failed to load profile. Please try again.',
+      });
+    }
+  }, [warnings]);
+
+  const fetchPermissions = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/auth/permissions/list/');
+      setPermissions(response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch permissions:', error);
+      setWarnings({
+        ...warnings,
+        general: 'Failed to load permissions. Please try again.',
+      });
+    }
+  }, [warnings]);
 
   useEffect(() => {
-    apiClient.get('/auth/roles/')
-      .then(response => {
-        setRoles(response.data);
-      })
-      .catch(error => {
-        if (error.response?.status === 403) {
-          console.warn('User lacks permission to fetch roles');
-          setRoles([]);
-        } else {
-          console.error('Failed to fetch roles:', error);
-        }
-      });
+    let isMounted = true;
 
-    apiClient.get('/auth/users/')
-      .then(response => {
-        setUsers(response.data);
-      })
-      .catch(error => {
-        if (error.response?.status === 403) {
-          console.warn('User lacks permission to fetch users');
-          setUsers([]);
-        } else {
-          console.error('Failed to fetch users:', error);
-        }
-      });
-  }, []);
+    const loadData = async () => {
+      if (isMounted) {
+        await Promise.all([fetchRoles(), fetchUsers(), fetchProfile(), fetchPermissions()]);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchRoles, fetchUsers, fetchProfile, fetchPermissions]);
+
+  useEffect(() => {
+    if (roleId && permissions.length > 0) {
+      const rolePermissions = permissions.find(
+        (perm) => perm.role === roleId && perm.page === 'user_management'
+      );
+      setHasDeletePermission(rolePermissions?.can_delete || false);
+    }
+  }, [roleId, permissions]);
+
+  useEffect(() => {
+    let filtered = users;
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(user =>
+        (user.first_name?.toLowerCase() || '').includes(query) ||
+        (user.last_name?.toLowerCase() || '').includes(query) ||
+        (user.username?.toLowerCase() || '').includes(query)
+      );
+    }
+
+    if (selectedRoleId) {
+      filtered = filtered.filter(user => user.role?.id === parseInt(selectedRoleId));
+    }
+
+    setFilteredUsers(filtered);
+  }, [users, searchQuery, selectedRoleId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -168,6 +254,14 @@ const UserRoles = () => {
   };
 
   const handleDelete = (userId) => {
+    if (!hasDeletePermission) {
+      setWarnings({
+        ...warnings,
+        general: 'You do not have permission to delete users.',
+      });
+      return;
+    }
+
     if (window.confirm('Are you sure you want to delete this user?')) {
       apiClient.delete(`/auth/users/${userId}/`)
         .then(() => {
@@ -215,6 +309,19 @@ const UserRoles = () => {
     setSuccess('');
   };
 
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleRoleFilterChange = (e) => {
+    setSelectedRoleId(e.target.value);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedRoleId('');
+  };
+
   return (
     <div className="flex items-center justify-center">
       <div className="w-full p-8 bg-transparent">
@@ -224,6 +331,11 @@ const UserRoles = () => {
         </p>
         {warnings.general && <p className="text-xs text-red-500 mb-4">{warnings.general}</p>}
         {success && <p className="text-xs text-green-500 mb-4">{success}</p>}
+        {!hasDeletePermission && (
+          <p className="text-xs text-red-500 mb-4">
+            You do not have permission to delete users. Contact an administrator.
+          </p>
+        )}
 
         {/* User Creation/Update Form */}
         <form onSubmit={handleSubmit} className="space-y-6 mb-12">
@@ -318,6 +430,35 @@ const UserRoles = () => {
 
         {/* Users Table */}
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Existing Users</h2>
+        <div className="mb-4 flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              placeholder="Search by name or username"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition-all duration-200 bg-gray-100 hover:bg-gray-50"
+            />
+          </div>
+          <div className="flex-1">
+            <select
+              value={selectedRoleId}
+              onChange={handleRoleFilterChange}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition-all duration-200 bg-gray-100 hover:bg-gray-50"
+            >
+              <option value="">All Roles</option>
+              {roles.map(role => (
+                <option key={role.id} value={role.id}>{role.name}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={clearFilters}
+            className="px-6 py-2 bg-gray-200 text-gray-800 hover:bg-gray-300 text-sm font-medium rounded-sm transition-all duration-300"
+          >
+            Clear Filters
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left text-gray-800">
             <thead className="text-xs text-gray-800 uppercase bg-gray-100">
@@ -331,7 +472,7 @@ const UserRoles = () => {
               </tr>
             </thead>
             <tbody>
-              {users.map(user => (
+              {filteredUsers.map(user => (
                 <tr key={user.id} className="bg-white border-b">
                   <td className="px-6 py-4">{user.email}</td>
                   <td className="px-6 py-4">{user.username}</td>
@@ -345,12 +486,14 @@ const UserRoles = () => {
                     >
                       Edit
                     </button>
-                    <button
-                      onClick={() => handleDelete(user.id)}
-                      className="text-red-500 hover:underline"
-                    >
-                      Delete
-                    </button>
+                    {hasDeletePermission && (
+                      <button
+                        onClick={() => handleDelete(user.id)}
+                        className="text-red-500 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

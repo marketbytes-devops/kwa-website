@@ -17,6 +17,28 @@ class PermissionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Login page must have view permission enabled.")
         return data
 
+class RoleCreateSerializer(serializers.ModelSerializer):
+    permissions = PermissionSerializer(many=True, required=False)
+
+    class Meta:
+        model = Role
+        fields = ('id', 'name', 'description', 'permissions')
+        read_only_fields = ('id',)
+
+    def create(self, validated_data):
+        permissions_data = validated_data.pop('permissions', [])
+        role = Role.objects.create(**validated_data)
+        
+        if permissions_data:
+            for perm_data in permissions_data:
+                Permission.objects.create(role=role, **perm_data)
+        
+        return role
+
+    def to_representation(self, instance):
+        serializer = RoleSerializer(instance)
+        return serializer.data
+
 class RoleSerializer(serializers.ModelSerializer):
     permissions = PermissionSerializer(many=True, read_only=True)
 

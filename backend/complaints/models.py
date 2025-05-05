@@ -15,11 +15,12 @@ class Complaint(models.Model):
     complaint_type = models.CharField(max_length=255)
     ticket_number = models.CharField(max_length=255, unique=True, editable=False)
     name = models.CharField(max_length=255)
-    date = models.DateField(default=date.today)  
+    date = models.DateField(default=date.today)
     address = models.TextField()
     phone_number = models.CharField(max_length=15)
     department = models.CharField(max_length=255)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='processing')
+    created_by = models.ForeignKey('authapp.User', on_delete=models.SET_NULL, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         if not self.serial_no:

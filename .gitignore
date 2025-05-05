@@ -1,1 +1,2 @@
 backend/staticfiles/*
+backend/authapp/__pycache__/*

@@ -6,7 +6,6 @@ router = DefaultRouter()
 router.register(r'connection-types', ConnectionTypeViewSet)
 router.register(r'connections', ConnectionViewSet)
 
-
 urlpatterns = [
     path('', include(router.urls)),
 ]

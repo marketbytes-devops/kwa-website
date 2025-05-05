@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 class Role(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -42,3 +44,24 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+@receiver(post_save, sender=Role)
+def set_default_permissions(sender, instance, created, **kwargs):
+    if created:
+        default_permissions = [
+            {'page': 'dashboard', 'can_view': True},
+            {'page': 'profile', 'can_view': True},
+        ]
+        for perm in default_permissions:
+            try:
+                Permission.objects.create(
+                    role=instance,
+                    page=perm['page'],
+                    can_view=perm['can_view'],
+                    can_add=False,
+                    can_edit=False,
+                    can_delete=False,
+                    is_login_page=False
+                )
+            except Exception as e:
+                print(f"Error creating permission for {perm['page']}: {str(e)}")

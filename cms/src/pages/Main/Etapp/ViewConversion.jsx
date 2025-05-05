@@ -35,6 +35,9 @@ const ViewApplication = () => {
     status: '',
   });
   const [editErrors, setEditErrors] = useState({});
+  const [permissions, setPermissions] = useState([]);
+  const [hasDeletePermission, setHasDeletePermission] = useState(false);
+  const [hasEditPermission, setHasEditPermission] = useState(false);
 
   const statusOptions = [
     { value: 'assistant_engineer', label: 'Assistant Engineer' },
@@ -43,7 +46,6 @@ const ViewApplication = () => {
     { value: 'completed', label: 'Completed' },
   ];
 
-  // Fetch conversions and connection types
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -63,23 +65,35 @@ const ViewApplication = () => {
         const conversionsResponse = await apiClient.get(
           `/conversion/conversions/${useApiFiltering ? `?${queryParams.toString()}` : ''}`
         );
-        console.log('Conversions response:', conversionsResponse.data);
         setConversions(conversionsResponse.data);
         setFilteredConversions(conversionsResponse.data);
 
         const typesResponse = await apiClient.get('/connectiontype/connection-types/');
-        console.log('Connection types response:', typesResponse.data);
         setConnectionTypes(typesResponse.data);
 
         const uniqueAreas = [...new Set(conversionsResponse.data.map(conv => conv.area))];
         setAreas(uniqueAreas);
 
+        const profileResponse = await apiClient.get('/auth/profile/');
+        const user = profileResponse.data;
+        const roleId = user.role?.id;
+        if (roleId) {
+          const roleResponse = await apiClient.get(`/auth/roles/${roleId}/`);
+          const rolePermissions = roleResponse.data.permissions || [];
+          setPermissions(rolePermissions);
+          const eTappPermission = rolePermissions.find(perm => perm.page === 'e-tapp');
+          setHasDeletePermission(eTappPermission?.can_delete || false);
+          setHasEditPermission(eTappPermission?.can_edit || false);
+        } else {
+          setHasDeletePermission(false);
+          setHasEditPermission(false);
+        }
+
         setError('');
       } catch (err) {
-        console.error('Failed to fetch data:', err);
         const errorMsg =
           err.response?.data?.detail ||
-          'Failed to load conversions or connection types. Please try again.';
+          'Failed to load conversions, connection types, or permissions. Please try again.';
         setError(errorMsg);
         toast.error(errorMsg);
       } finally {
@@ -90,7 +104,6 @@ const ViewApplication = () => {
     fetchData();
   }, [filters, searchQuery, sortOrder, useApiFiltering]);
 
-  // Apply client-side filters and sorting
   useEffect(() => {
     if (useApiFiltering) return;
 
@@ -130,33 +143,27 @@ const ViewApplication = () => {
     setFilteredConversions(sorted);
   }, [filters, searchQuery, sortOrder, conversions, useApiFiltering]);
 
-  // Handle filter changes
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle search input change
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
   };
 
-  // Clear search
   const clearSearch = () => {
     setSearchQuery('');
   };
 
-  // Handle date filter changes
   const handleDateFilterChange = (date, name) => {
     setFilters(prev => ({ ...prev, [name]: date }));
   };
 
-  // Toggle date sorting
   const toggleDateSort = () => {
     setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
   };
 
-  // Clear filters and sort
   const clearFiltersAndSort = () => {
     setFilters({
       from_connection_type: '',
@@ -170,8 +177,11 @@ const ViewApplication = () => {
     setSortOrder('asc');
   };
 
-  // Handle status change in table
   const handleStatusChange = async (conversionId, newStatus) => {
+    if (!hasEditPermission) {
+      toast.error('You do not have permission to edit conversions.');
+      return;
+    }
     try {
       const response = await apiClient.patch(`/conversion/conversions/${conversionId}/`, { status: newStatus });
       setConversions(prev => prev.map(conv =>
@@ -182,7 +192,6 @@ const ViewApplication = () => {
       ));
       toast.success('Status updated successfully!');
     } catch (err) {
-      console.error('Failed to update status:', err);
       const errorMsg =
         err.response?.data?.detail ||
         'Failed to update status.';
@@ -190,7 +199,6 @@ const ViewApplication = () => {
     }
   };
 
-  // Open edit modal
   const openEditModal = (conversion) => {
     setEditConversion(conversion);
     setEditFormData({
@@ -207,14 +215,12 @@ const ViewApplication = () => {
     setEditModalOpen(true);
   };
 
-  // Handle edit form input changes
   const handleEditInputChange = (e) => {
     const { name, value } = e.target;
     setEditFormData(prev => ({ ...prev, [name]: value }));
     setEditErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  // Validate edit form
   const validateEditForm = () => {
     const newErrors = {};
     if (!editFormData.name.trim()) newErrors.name = 'Name is required.';
@@ -227,7 +233,6 @@ const ViewApplication = () => {
     return newErrors;
   };
 
-  // Handle edit form submission
   const handleEditSubmit = async (e) => {
     e.preventDefault();
 
@@ -247,7 +252,6 @@ const ViewApplication = () => {
         to_connection_type: parseInt(editFormData.to_connection_type),
         status: editFormData.status,
       };
-      console.log('Updating conversion payload:', payload);
       const response = await apiClient.patch(`/conversion/conversions/${editFormData.id}/`, payload);
 
       setConversions(prev => prev.map(conv =>
@@ -260,7 +264,6 @@ const ViewApplication = () => {
       setEditModalOpen(false);
       toast.success('Conversion updated successfully!');
     } catch (err) {
-      console.error('Failed to update conversion:', err);
       const errorMsg =
         err.response?.data?.detail ||
         Object.values(err.response?.data || {})[0]?.[0] ||
@@ -269,8 +272,12 @@ const ViewApplication = () => {
     }
   };
 
-  // Handle delete
   const handleDelete = async (id) => {
+    if (!hasDeletePermission) {
+      toast.error('You do not have permission to delete conversions.');
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to delete this conversion?')) return;
 
     try {
@@ -281,7 +288,6 @@ const ViewApplication = () => {
 
       toast.success('Conversion deleted successfully!');
     } catch (err) {
-      console.error('Failed to delete conversion:', err);
       const errorMsg =
         err.response?.data?.detail ||
         'Failed to delete conversion.';
@@ -290,13 +296,11 @@ const ViewApplication = () => {
   };
 
   return (
-    <div className="mt-14 p-4 max-w-6xl mx-auto bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold text-[#00334d] mb-6">View Conversion Applications</h1>
+    <div className="mt-4 p-4 max-w-6xl mx-auto sm:mt-14 sm:p-6">
+      <h1 className="text-xl font-bold text-[#00334d] mb-4 sm:text-2xl">View Conversion Applications</h1>
 
-      {/* Filters */}
-      <div className="mb-6 bg-white p-4 rounded-lg shadow-md">
+      <div className="mb-4 bg-white p-4 rounded-lg shadow-md sm:p-6">
         <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-          {/* Search by Name */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
               Search by Name
@@ -319,7 +323,6 @@ const ViewApplication = () => {
               </button>
             </div>
           </div>
-          {/* From Connection Type Filter */}
           <div>
             <label htmlFor="from_connection_type" className="block text-sm font-medium text-gray-700 mb-2">
               From Connection Type
@@ -340,7 +343,6 @@ const ViewApplication = () => {
               ))}
             </select>
           </div>
-          {/* To Connection Type Filter */}
           <div>
             <label htmlFor="to_connection_type" className="block text-sm font-medium text-gray-700 mb-2">
               To Connection Type
@@ -361,7 +363,6 @@ const ViewApplication = () => {
               ))}
             </select>
           </div>
-          {/* Area Filter */}
           <div>
             <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-2">
               Area
@@ -382,7 +383,6 @@ const ViewApplication = () => {
               ))}
             </select>
           </div>
-          {/* Status Filter */}
           <div>
             <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
               Status
@@ -403,7 +403,6 @@ const ViewApplication = () => {
               ))}
             </select>
           </div>
-          {/* Date From Filter */}
           <div>
             <label htmlFor="date_from" className="block text-sm font-medium text-gray-700 mb-2">
               Created From
@@ -418,7 +417,6 @@ const ViewApplication = () => {
               disabled={loading}
             />
           </div>
-          {/* Date To Filter */}
           <div>
             <label htmlFor="date_to" className="block text-sm font-medium text-gray-700 mb-2">
               Created To
@@ -442,20 +440,17 @@ const ViewApplication = () => {
         </button>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
           {error}
         </div>
       )}
 
-      {/* Edit Modal */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-md max-w-lg w-full">
             <h2 className="text-xl font-bold text-[#00334d] mb-4">Edit Conversion</h2>
             <form onSubmit={handleEditSubmit}>
-              {/* Name */}
               <div className="mb-4">
                 <label htmlFor="edit_name" className="block text-sm font-medium text-gray-700 mb-2">
                   Name
@@ -471,7 +466,6 @@ const ViewApplication = () => {
                 {editErrors.name && <p className="mt-2 text-sm text-red-600">{editErrors.name}</p>}
               </div>
 
-              {/* Address */}
               <div className="mb-4">
                 <label htmlFor="edit_address" className="block text-sm font-medium text-gray-700 mb-2">
                   Address
@@ -487,7 +481,6 @@ const ViewApplication = () => {
                 {editErrors.address && <p className="mt-2 text-sm text-red-600">{editErrors.address}</p>}
               </div>
 
-              {/* File Number */}
               <div className="mb-4">
                 <label htmlFor="edit_file_number" className="block text-sm font-medium text-gray-700 mb-2">
                   File Number
@@ -503,7 +496,6 @@ const ViewApplication = () => {
                 {editErrors.file_number && <p className="mt-2 text-sm text-red-600">{editErrors.file_number}</p>}
               </div>
 
-              {/* Area */}
               <div className="mb-4">
                 <label htmlFor="edit_area" className="block text-sm font-medium text-gray-700 mb-2">
                   Area
@@ -519,7 +511,6 @@ const ViewApplication = () => {
                 {editErrors.area && <p className="mt-2 text-sm text-red-600">{editErrors.area}</p>}
               </div>
 
-              {/* From Connection Type */}
               <div className="mb-4">
                 <label htmlFor="edit_from_connection_type" className="block text-sm font-medium text-gray-700 mb-2">
                   From Connection Type
@@ -541,7 +532,6 @@ const ViewApplication = () => {
                 {editErrors.from_connection_type && <p className="mt-2 text-sm text-red-600">{editErrors.from_connection_type}</p>}
               </div>
 
-              {/* To Connection Type */}
               <div className="mb-4">
                 <label htmlFor="edit_to_connection_type" className="block text-sm font-medium text-gray-700 mb-2">
                   To Connection Type
@@ -563,7 +553,6 @@ const ViewApplication = () => {
                 {editErrors.to_connection_type && <p className="mt-2 text-sm text-red-600">{editErrors.to_connection_type}</p>}
               </div>
 
-              {/* Status */}
               <div className="mb-4">
                 <label htmlFor="edit_status" className="block text-sm font-medium text-gray-700 mb-2">
                   Status
@@ -585,7 +574,6 @@ const ViewApplication = () => {
                 {editErrors.status && <p className="mt-2 text-sm text-red-600">{editErrors.status}</p>}
               </div>
 
-              {/* Modal Buttons */}
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
@@ -606,7 +594,6 @@ const ViewApplication = () => {
         </div>
       )}
 
-      {/* Loading State */}
       {loading ? (
         <div className="text-center text-gray-600">Loading conversions...</div>
       ) : (
@@ -653,31 +640,41 @@ const ViewApplication = () => {
                     <td className="px-4 py-2">{conversion.name}</td>
                     <td className="px-4 py-2">{conversion.address}</td>
                     <td className="px-4 py-2">
-                      <select
-                        value={conversion.status}
-                        onChange={(e) => handleStatusChange(conversion.id, e.target.value)}
-                        className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00334d]"
-                      >
-                        {statusOptions.map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                      {hasEditPermission ? (
+                        <select
+                          value={conversion.status}
+                          onChange={(e) => handleStatusChange(conversion.id, e.target.value)}
+                          className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00334d]"
+                        >
+                          {statusOptions.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="px-2 py-1 text-sm text-gray-600">
+                          {statusOptions.find(opt => opt.value === conversion.status)?.label || conversion.status}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2 flex gap-2">
-                      <button
-                        onClick={() => openEditModal(conversion)}
-                        className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(conversion.id)}
-                        className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
+                      {hasEditPermission && (
+                        <button
+                          onClick={() => openEditModal(conversion)}
+                          className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {hasDeletePermission && (
+                        <button
+                          onClick={() => handleDelete(conversion.id)}
+                          className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

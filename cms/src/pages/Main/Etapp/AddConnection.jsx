@@ -7,27 +7,22 @@ const AddConnection = () => {
     name: "",
     address: "",
     file_number: "",
-    area: "", // Will store area ID
+    area: "",
     connection_type: "",
   });
   const [connectionTypes, setConnectionTypes] = useState([]);
-  const [areas, setAreas] = useState([]); // New state for areas
+  const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState("");
 
-  // Fetch connection types and areas
   useEffect(() => {
     const fetchConnectionTypes = async () => {
       try {
-        const response = await apiClient.get(
-          "/connectiontype/connection-types/"
-        );
-        console.log("Connection types response:", response.data);
+        const response = await apiClient.get("/connectiontype/connection-types/");
         setConnectionTypes(response.data);
       } catch (err) {
-        console.error("Failed to fetch connection types:", err);
         setGeneralError("Failed to load connection types. Please try again.");
         toast.error("Failed to load connection types.");
       }
@@ -36,14 +31,12 @@ const AddConnection = () => {
     const fetchAreas = async () => {
       try {
         const response = await apiClient.get("/area/add-area/");
-        console.log("Areas response:", response.data);
         const areaOptions = response.data.map((area) => ({
           value: area.id,
           label: area.area_name,
         }));
         setAreas(areaOptions);
       } catch (err) {
-        console.error("Failed to fetch areas:", err);
         setGeneralError("Failed to load areas. Please try again.");
         toast.error("Failed to load areas.");
       }
@@ -54,7 +47,6 @@ const AddConnection = () => {
     });
   }, []);
 
-  // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -62,7 +54,6 @@ const AddConnection = () => {
     setGeneralError("");
   };
 
-  // Validate form
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Name is required.";
@@ -75,7 +66,6 @@ const AddConnection = () => {
     return newErrors;
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -92,10 +82,9 @@ const AddConnection = () => {
         name: formData.name.trim(),
         address: formData.address.trim(),
         file_number: formData.file_number.trim(),
-        area: parseInt(formData.area), // Send area ID
+        area: parseInt(formData.area),
         connection_type: parseInt(formData.connection_type),
       };
-      console.log("Submitting payload:", payload);
       await apiClient.post("/connectiontype/connections/", payload);
       setFormData({
         name: "",
@@ -104,10 +93,8 @@ const AddConnection = () => {
         area: "",
         connection_type: "",
       });
-      setGeneralError("");
       toast.success("Connection added successfully!");
     } catch (err) {
-      console.error("Failed to add connection:", err);
       const errorMsg =
         err.response?.data?.detail ||
         Object.values(err.response?.data || {})[0]?.[0] ||
@@ -119,7 +106,6 @@ const AddConnection = () => {
     }
   };
 
-  // Get selected connection type and area for display
   const selectedConnectionType = connectionTypes.find(
     (type) => type.id === parseInt(formData.connection_type)
   );
@@ -128,28 +114,20 @@ const AddConnection = () => {
   );
 
   return (
-    <div className="mt-14 p-4 max-w-4xl mx-auto bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold text-[#00334d] mb-6">
+    <div className="mt-4 p-4 max-w-xl mx-auto sm:mt-14 sm:p-6">
+      <h1 className="text-xl font-bold text-[#00334d] mb-4 sm:text-2xl">
         Add New Connection
       </h1>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-lg shadow-md"
-      >
-        {/* General Error Message */}
+      <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow-md sm:p-6">
         {generalError && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
             {generalError}
           </div>
         )}
 
-        {/* Name */}
         <div className="mb-4">
-          <label
-            htmlFor="name"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
             Name
           </label>
           <input
@@ -167,12 +145,8 @@ const AddConnection = () => {
           )}
         </div>
 
-        {/* Address */}
         <div className="mb-4">
-          <label
-            htmlFor="address"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
             Address
           </label>
           <input
@@ -190,12 +164,8 @@ const AddConnection = () => {
           )}
         </div>
 
-        {/* File Number */}
         <div className="mb-4">
-          <label
-            htmlFor="file_number"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="file_number" className="block text-sm font-medium text-gray-700 mb-2">
             File Number
           </label>
           <input
@@ -213,12 +183,8 @@ const AddConnection = () => {
           )}
         </div>
 
-        {/* Area */}
         <div className="mb-4">
-          <label
-            htmlFor="area"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-2">
             Area
           </label>
           <select
@@ -249,12 +215,8 @@ const AddConnection = () => {
           )}
         </div>
 
-        {/* Connection Type */}
         <div className="mb-4">
-          <label
-            htmlFor="connection_type"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="connection_type" className="block text-sm font-medium text-gray-700 mb-2">
             Connection Type
           </label>
           <select
@@ -289,11 +251,10 @@ const AddConnection = () => {
           )}
         </div>
 
-        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading || fetchLoading}
-          className={`px-4 py-2 text-sm font-medium text-white bg-[#00334d] rounded-md hover:bg-[#002a3f] focus:outline-none focus:ring-2 focus:ring-[#00334d] ${
+          className={`w-full px-4 py-2 text-sm font-medium text-white bg-[#00334d] rounded-md hover:bg-[#002a3f] focus:outline-none focus:ring-2 focus:ring-[#00334d] sm:w-auto ${
             loading || fetchLoading ? "opacity-50 cursor-not-allowed" : ""
           }`}
         >

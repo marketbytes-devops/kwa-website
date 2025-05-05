@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 
-// Unified icon mapping
 const iconComponents = {
   LayoutDashboard,
   Settings,
@@ -41,7 +40,6 @@ const iconComponents = {
   Repeat,
 };
 
-// Link definitions
 const complaintsLinks = [
   { to: '/complaints/add-complaints', label: 'Add Complaints', page: 'complaints', action: 'add' },
   { to: '/complaints/view-complaints', label: 'View Complaints', page: 'complaints', action: 'view' },
@@ -64,13 +62,13 @@ const userManagementLinks = [
   { to: '/permissions', label: 'Permissions', page: 'permission', action: 'view' },
 ];
 const connectionLinks = [
-  { to: '/e-tap/connection/type', label: 'Connection Type', page: 'e-tapp', action: 'view', icon: 'Link' },
-  { to: '/e-tap/connection/add', label: 'New Connection', page: 'e-tapp', action: 'add', icon: 'Link' },
-  { to: '/e-tap/connection/view', label: 'View Connection', page: 'e-tapp', action: 'view', icon: 'Link' },
+  { to: '/e-tapp/connection/type', label: 'Connection Type', page: 'e-tapp', action: 'view', icon: 'Link' },
+  { to: '/e-tapp/connection/add', label: 'New Connection', page: 'e-tapp', action: 'add', icon: 'Link' },
+  { to: '/e-tapp/connection/view', label: 'View Connection', page: 'e-tapp', action: 'view', icon: 'Link' },
 ];
 const conversionLinks = [
-  { to: '/e-tap/conversion/add', label: 'Add New Applications', page: 'e-tapp', action: 'add', icon: 'Repeat' },
-  { to: '/e-tap/conversion/view', label: 'View Applications', page: 'e-tapp', action: 'view', icon: 'Repeat' },
+  { to: '/e-tapp/conversion/add', label: 'Add New Applications', page: 'e-tapp', action: 'add', icon: 'Repeat' },
+  { to: '/e-tapp/conversion/view', label: 'View Applications', page: 'e-tapp', action: 'view', icon: 'Repeat' },
 ];
 const eTapLinks = [
   {
@@ -84,7 +82,6 @@ const eTapLinks = [
   { type: 'dropdown', label: 'Conversion', icon: 'Repeat', links: conversionLinks, page: 'e-tapp', action: 'view' },
 ];
 
-// Extract unique pages for export
 export const pages = [
   ...new Set([
     'dashboard',
@@ -102,7 +99,6 @@ export const pages = [
   ]),
 ];
 
-// Dropdown component with improved styling
 const Dropdown = ({ label, links, icon, permissions, isSuperadmin, level = 0 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const IconComponent = iconComponents[icon] || Cog;
@@ -111,6 +107,13 @@ const Dropdown = ({ label, links, icon, permissions, isSuperadmin, level = 0 }) 
 
   const filteredLinks = links.filter((link) => {
     if (isSuperadmin) return true;
+    if (link.type === 'dropdown') {
+      const nestedLinks = link.links.filter((nestedLink) => {
+        const perm = permissions.find((p) => p.page === nestedLink.page);
+        return perm && perm[`can_${nestedLink.action}`];
+      });
+      return nestedLinks.length > 0;
+    }
     const perm = permissions.find((p) => p.page === link.page);
     return perm && perm[`can_${link.action}`];
   });
@@ -177,11 +180,12 @@ const Dropdown = ({ label, links, icon, permissions, isSuperadmin, level = 0 }) 
                   >
                     {({ isActive }) => (
                       <div className="flex items-center">
-                        {iconComponents[link.icon] && React.createElement(iconComponents[link.icon], {
-                          className: `w-4 h-4 mr-2 ${
-                            isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-blue-600'
-                          }`,
-                        })}
+                        {iconComponents[link.icon] &&
+                          React.createElement(iconComponents[link.icon], {
+                            className: `w-4 h-4 mr-2 ${
+                              isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-blue-600'
+                            }`,
+                          })}
                         <span>{link.label}</span>
                       </div>
                     )}
@@ -196,40 +200,44 @@ const Dropdown = ({ label, links, icon, permissions, isSuperadmin, level = 0 }) 
   );
 };
 
-// Section component for grouping navigation items
-const Section = ({ title, children, isOpen, toggleOpen }) => (
-  <div className="mb-4">
-    <button
-      onClick={toggleOpen}
-      className="flex items-center w-full px-3 py-2 text-xs font-semibold text-gray-800 uppercase tracking-wide bg-gradient-to-r from-gray-50 to-white hover:bg-gray-100 rounded-md shadow-sm transition-all duration-200"
-    >
-      <motion.div animate={{ rotate: isOpen ? 90 : 0 }} transition={{ duration: 0.3 }}>
-        <ChevronDown className="w-4 h-4 mr-2 text-gray-500" />
-      </motion.div>
-      {title}
-    </button>
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.3 }}
-          className="mt-2 space-y-1"
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </div>
-);
+const Section = ({ title, children, isOpen, toggleOpen }) => {
+  if (!children || !children.length) return null;
 
-const Sidebar = ({ isOpen }) => {
+  return (
+    <div className="mb-4">
+      <button
+        onClick={toggleOpen}
+        className="flex items-center w-full px-3 py-2 text-xs font-semibold text-gray-800 uppercase tracking-wide bg-gradient-to-r from-gray-50 to-white hover:bg-gray-100 rounded-md shadow-sm transition-all duration-200"
+      >
+        <motion.div animate={{ rotate: isOpen ? 90 : 0 }} transition={{ duration: 0.3 }}>
+          <ChevronDown className="w-4 h-4 mr-2 text-gray-500" />
+        </motion.div>
+        {title}
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mt-2 space-y-1"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const Sidebar = ({ isOpen, toggleSidebar }) => {
   const location = useLocation();
   const [activeItem, setActiveItem] = useState('');
   const [permissions, setPermissions] = useState([]);
   const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState(null);
   const [sectionStates, setSectionStates] = useState({
     core: true,
     operations: true,
@@ -238,25 +246,26 @@ const Sidebar = ({ isOpen }) => {
   });
 
   useEffect(() => {
-    apiClient
-      .get('/auth/profile/')
-      .then((response) => {
-        const userRole = response.data.role?.name;
-        setIsSuperadmin(response.data.is_superuser || userRole === 'Superadmin');
-        if (response.data.role?.id) {
-          apiClient
-            .get(`/auth/roles/${response.data.role.id}/`)
-            .then((res) => {
-              setPermissions(res.data.permissions || []);
-            })
-            .catch((error) => {
-              console.error('Failed to fetch permissions:', error);
-            });
+    const fetchProfile = async () => {
+      try {
+        const response = await apiClient.get('/auth/profile/');
+        const user = response.data;
+        setIsSuperadmin(user.is_superuser || user.role?.name === 'Superadmin');
+        const roleId = user.role?.id;
+        if (roleId) {
+          const res = await apiClient.get(`/auth/roles/${roleId}/`);
+          setPermissions(res.data.permissions || []);
+        } else {
+          setPermissions([]);
         }
-      })
-      .catch((error) => {
-        console.error('Failed to fetch profile:', error);
-      });
+      } catch (error) {
+        setError('Unable to fetch user profile. Some features may not be available.');
+        setPermissions([]);
+        setIsSuperadmin(false);
+      }
+    };
+
+    fetchProfile();
   }, []);
 
   const toggleSection = (section) => {
@@ -355,7 +364,6 @@ const Sidebar = ({ isOpen }) => {
     },
     {
       section: 'etap',
-      superadminOnly: true,
       items: [
         {
           type: 'dropdown',
@@ -368,141 +376,166 @@ const Sidebar = ({ isOpen }) => {
     },
   ];
 
-  const filteredNavigationItems = navigationItems.map((section) => ({
-    ...section,
-    items: section.items.filter((item) => {
-      if (section.superadminOnly && !isSuperadmin) return false;
-      if (item.type === 'link' || item.type === 'external') {
-        return hasPermission(item.page, item.action);
+  const filteredNavigationItems = navigationItems
+    .map((section) => {
+      const filteredItems = section.items.filter((item) => {
+        if (section.superadminOnly && !isSuperadmin) return false;
+        if (item.type === 'link' || item.type === 'external') {
+          return hasPermission(item.page, item.action);
+        }
+        if (item.type === 'dropdown') {
+          const filteredLinks = item.links.filter((link) => {
+            if (link.type === 'external') {
+              return hasPermission(link.page, link.action);
+            }
+            if (link.type === 'dropdown') {
+              const nestedLinks = link.links.filter((nestedLink) => hasPermission(nestedLink.page, nestedLink.action));
+              return nestedLinks.length > 0;
+            }
+            return hasPermission(link.page, link.action);
+          });
+          return filteredLinks.length > 0;
+        }
+        return false;
+      });
+      return {
+        ...section,
+        items: filteredItems,
+      };
+    })
+    .filter((section) => {
+      const sectionHasItems = section.items.length > 0;
+      if (!sectionHasItems) {
+        console.log(`Section ${section.section} hidden: No permitted items`);
       }
-      return true; // Dropdowns are filtered internally
-    }),
-  })).filter((section) => section.items.length > 0);
+      return sectionHasItems;
+    })
+    .map((section) => {
+      const filteredItems = section.items.filter((item) => {
+        if (!searchQuery) return true;
+        return item.label.toLowerCase().includes(searchQuery.toLowerCase());
+      });
+      return {
+        ...section,
+        items: filteredItems,
+      };
+    })
+    .filter((section) => section.items.length > 0);
 
   const sidebarVariants = {
-    open: { width: 280, opacity: 1, transition: { duration: 0.3, ease: 'easeInOut' } },
+    open: { width: '280px', opacity: 1, transition: { duration: 0.3, ease: 'easeInOut' } },
     closed: { width: 0, opacity: 0, transition: { duration: 0.3, ease: 'easeInOut' } },
   };
 
   return (
-    <motion.aside
-      initial="closed"
-      animate={isOpen ? 'open' : 'closed'}
-      variants={sidebarVariants}
-      className="fixed top-16 bottom-0 bg-gradient-to-b from-gray-50 to-white shadow-lg z-40 flex flex-col overflow-hidden"
-    >
-      <motion.div
-        className="flex-grow p-4 pt-6 overflow-y-auto custom-scrollbar"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isOpen ? 1 : 0 }}
-        transition={{ duration: 0.3 }}
+    <>
+      <button onClick={toggleSidebar} className="fixed top-4 left-4 z-50 p-2 bg-gray-800 text-white rounded-full shadow-lg lg:hidden">
+        <Cog className="w-6 h-6" />
+      </button>
+      <motion.aside
+        initial="closed"
+        animate={isOpen ? 'open' : 'closed'}
+        variants={sidebarVariants}
+        className="fixed top-16 bottom-0 bg-gradient-to-b from-gray-50 to-white shadow-lg z-40 flex flex-col overflow-hidden lg:translate-x-0"
       >
-        {/* Search Input */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search menu..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white shadow-sm text-gray-800 placeholder-gray-400 transition-all duration-200"
-            />
+        <motion.div
+          className="flex-grow p-4 pt-6 overflow-y-auto custom-scrollbar"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isOpen ? 1 : 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
+              {error}
+            </div>
+          )}
+          <div className="mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search menu..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white shadow-sm text-gray-800 placeholder-gray-400 transition-all duration-200"
+              />
+            </div>
           </div>
-        </div>
-
-        {/* Navigation Sections */}
-        <nav className="space-y-4">
-          {filteredNavigationItems.map((section) => (
-            <Section
-              key={section.section}
-              title={section.section.charAt(0).toUpperCase() + section.section.slice(1)}
-              isOpen={sectionStates[section.section]}
-              toggleOpen={() => toggleSection(section.section)}
-            >
-              {section.items.map((item, index) => {
-                if (searchQuery && !item.label.toLowerCase().includes(searchQuery.toLowerCase())) {
-                  return null;
-                }
-                return item.type === 'link' ? (
+          <nav className="space-y-4">
+            {filteredNavigationItems.map((section, index) => (
+              <Section
+                key={section.section}
+                title={section.section.charAt(0).toUpperCase() + section.section.slice(1)}
+                isOpen={sectionStates[section.section]}
+                toggleOpen={() => toggleSection(section.section)}
+              >
+                {section.items.map((item, itemIndex) => (
                   <motion.div
-                    key={item.to}
+                    key={item.to || item.url || item.label}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.3 }}
+                    transition={{ delay: itemIndex * 0.1, duration: 0.3 }}
                   >
-                    <NavLink
-                      to={item.to}
-                      onClick={() => setActiveItem(item.to)}
-                      className={({ isActive }) =>
-                        `flex items-center p-3 text-sm font-medium rounded-lg ${
-                          isActive
+                    {item.type === 'link' ? (
+                      <NavLink
+                        to={item.to}
+                        onClick={() => setActiveItem(item.to)}
+                        className={({ isActive }) =>
+                          `flex items-center p-3 text-sm font-medium rounded-lg ${
+                            isActive
+                              ? 'bg-gradient-to-r from-blue-100 to-white text-gray-900 font-semibold shadow-inner'
+                              : 'text-gray-800 hover:bg-gradient-to-r hover:from-blue-50 hover:to-white hover:text-blue-800'
+                          } transition-all duration-200`
+                        }
+                        title={item.label}
+                      >
+                        {({ isActive }) => (
+                          <>
+                            {iconComponents[item.icon] &&
+                              React.createElement(iconComponents[item.icon], {
+                                className: `w-5 h-5 mr-3 ${
+                                  isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-blue-600'
+                                }`,
+                              })}
+                            <span>{item.label}</span>
+                          </>
+                        )}
+                      </NavLink>
+                    ) : item.type === 'external' ? (
+                      <button
+                        onClick={() => window.open(item.url, '_blank')}
+                        className={`flex items-center p-3 text-sm font-medium w-full text-left rounded-lg ${
+                          activeItem === item.url
                             ? 'bg-gradient-to-r from-blue-100 to-white text-gray-900 font-semibold shadow-inner'
                             : 'text-gray-800 hover:bg-gradient-to-r hover:from-blue-50 hover:to-white hover:text-blue-800'
-                        } transition-all duration-200`
-                      }
-                      title={item.label}
-                    >
-                      {({ isActive }) => (
-                        <>
-                          {iconComponents[item.icon] &&
-                            React.createElement(iconComponents[item.icon], {
-                              className: `w-5 h-5 mr-3 ${
-                                isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-blue-600'
-                              }`,
-                            })}
-                          <span>{item.label}</span>
-                        </>
-                      )}
-                    </NavLink>
+                        } transition-all duration-200`}
+                        title={item.label}
+                      >
+                        {iconComponents[item.icon] &&
+                          React.createElement(iconComponents[item.icon], {
+                            className: `w-5 h-5 mr-3 ${
+                              activeItem === item.url ? 'text-gray-900' : 'text-gray-500 group-hover:text-blue-600'
+                            }`,
+                          })}
+                        <span>{item.label}</span>
+                      </button>
+                    ) : (
+                      <Dropdown
+                        label={item.label}
+                        links={item.links}
+                        icon={item.icon}
+                        permissions={permissions}
+                        isSuperadmin={isSuperadmin}
+                      />
+                    )}
                   </motion.div>
-                ) : item.type === 'external' ? (
-                  <motion.div
-                    key={item.url}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.3 }}
-                  >
-                    <button
-                      onClick={() => window.open(item.url, '_blank')}
-                      className={`flex items-center p-3 text-sm font-medium w-full text-left rounded-lg ${
-                        activeItem === item.url
-                          ? 'bg-gradient-to-r from-blue-100 to-white text-gray-900 font-semibold shadow-inner'
-                          : 'text-gray-800 hover:bg-gradient-to-r hover:from-blue-50 hover:to-white hover:text-blue-800'
-                      } transition-all duration-200`}
-                      title={item.label}
-                    >
-                      {iconComponents[item.icon] &&
-                        React.createElement(iconComponents[item.icon], {
-                          className: `w-5 h-5 mr-3 ${
-                            activeItem === item.url ? 'text-gray-900' : 'text-gray-500 group-hover:text-blue-600'
-                          }`,
-                        })}
-                      <span>{item.label}</span>
-                    </button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key={item.label}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.3 }}
-                  >
-                    <Dropdown
-                      label={item.label}
-                      links={item.links}
-                      icon={item.icon}
-                      permissions={permissions}
-                      isSuperadmin={isSuperadmin}
-                    />
-                  </motion.div>
-                );
-              })}
-            </Section>
-          ))}
-        </nav>
-      </motion.div>
-    </motion.aside>
+                ))}
+              </Section>
+            ))}
+          </nav>
+        </motion.div>
+      </motion.aside>
+    </>
   );
 };
 

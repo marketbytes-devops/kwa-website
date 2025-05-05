@@ -15,6 +15,13 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from django.conf import settings
+from rest_framework import viewsets
+from .models import Role
+from .serializers import RoleCreateSerializer
+
+class RoleViewSet(viewsets.ModelViewSet):
+    queryset = Role.objects.all()
+    serializer_class = RoleCreateSerializer
 
 class HasPermission(BasePermission):
     def has_permission(self, request, view):

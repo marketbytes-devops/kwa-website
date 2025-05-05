@@ -43,7 +43,31 @@ const AddValve = () => {
       showWarning: true,
       step: "0.1",
       min: "0",
-      max: "", 
+      max: "",
+    },
+    {
+      id: "mid_point",
+      type: "number",
+      label: "Mid Point",
+      value: "0.5", // Default value, editable by user
+      placeholder: "Enter mid point",
+      warning: "Please enter a number between 0 and 1 for mid point.",
+      showWarning: true,
+      step: "0.01",
+      min: "0",
+      max: "1",
+    },
+    {
+      id: "steepness",
+      type: "number",
+      label: "Steepness",
+      value: "12.5", // Default value, editable by user
+      placeholder: "Enter steepness",
+      warning: "Please enter a number between 0 and 100 for steepness.",
+      showWarning: true,
+      step: "0.1",
+      min: "0",
+      max: "100",
     },
     {
       id: "remarks",
@@ -79,7 +103,7 @@ const AddValve = () => {
     {
       id: "previous_position",
       type: "hidden",
-      value: "", // Ensure this field is included
+      value: "",
     },
   ];
 

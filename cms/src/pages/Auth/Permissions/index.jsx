@@ -4,24 +4,12 @@ import apiClient from '../../../api/apiClient';
 const Permissions = () => {
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
-  const [formData, setFormData] = useState({
-    id: null, // For editing
-    role_id: '',
-    page: '',
-    can_view: false,
-    can_add: false,
-    can_edit: false,
-    can_delete: false,
-    is_login_page: false,
-  });
-  const [warnings, setWarnings] = useState({
-    role_id: '',
-    page: '',
-    general: '',
-  });
-  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRoleId, setSelectedRoleId] = useState(null);
+  const [modalPermissions, setModalPermissions] = useState([]);
+  const [warnings, setWarnings] = useState({ general: '' });
+  const [success, setSuccess] = useState('');
 
   const pages = [
     'dashboard',
@@ -33,8 +21,9 @@ const Permissions = () => {
     'valves',
     'area',
     'flows',
-    'bluebrigade',
+    'bluebrigade', 
     'runningcontract',
+    'e-tapp',
   ];
 
   useEffect(() => {
@@ -45,6 +34,7 @@ const Permissions = () => {
         setRoles(rolesResponse.data);
 
         const permissionsResponse = await apiClient.get('/auth/permissions/list/');
+        console.log('Fetched permissions:', permissionsResponse.data);
         setPermissions(permissionsResponse.data);
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -60,300 +50,118 @@ const Permissions = () => {
     fetchData();
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-    setWarnings({ ...warnings, [name]: '', general: '' });
-    setSuccess('');
+  const openPermissionModal = (roleId) => {
+    setSelectedRoleId(roleId);
+    const rolePermissions = permissions.filter((p) => p.role === roleId);
+    console.log(`Permissions for role ${roleId}:`, rolePermissions);
+    const initialPermissions = pages.map((page) => {
+      const existing = rolePermissions.find((p) => p.page === page);
+      return {
+        page,
+        can_view: existing ? existing.can_view : false,
+        can_add: existing ? existing.can_add : false,
+        can_edit: existing ? existing.can_edit : false,
+        can_delete: existing ? existing.can_delete : false,
+        id: existing ? existing.id : null,
+      };
+    });
+    setModalPermissions(initialPermissions);
+    setIsModalOpen(true);
   };
 
-  const validateForm = () => {
-    let hasError = false;
-    const newWarnings = { role_id: '', page: '', general: '' };
-
-    if (!formData.role_id) {
-      newWarnings.role_id = 'Role is required';
-      hasError = true;
-    }
-    if (!formData.page) {
-      newWarnings.page = 'Page is required';
-      hasError = true;
-    }
-    if (formData.is_login_page && !formData.can_view) {
-      newWarnings.general = 'Login page requires view permission';
-      hasError = true;
-    }
-
-    setWarnings(newWarnings);
-    return !hasError;
+  const handleModalPermissionChange = (page, field) => {
+    setModalPermissions((prev) =>
+      prev.map((perm) =>
+        perm.page === page
+          ? { ...perm, [field]: !perm[field] }
+          : perm
+      )
+    );
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    const data = {
-      role: formData.role_id,
-      page: formData.page,
-      can_view: formData.can_view,
-      can_add: formData.can_add,
-      can_edit: formData.can_edit,
-      can_delete: formData.can_delete,
-      is_login_page: formData.is_login_page,
-    };
-
+  const saveModalPermissions = async () => {
     try {
-      if (isEditing) {
-        await apiClient.put(`/auth/permissions/${formData.id}/`, data);
-        setSuccess('Permission updated successfully');
-      } else {
-        await apiClient.post('/auth/permissions/', data);
-        setSuccess('Permission created successfully');
-      }
+      for (const perm of modalPermissions) {
+        const data = {
+          role: selectedRoleId,
+          page: perm.page,
+          can_view: perm.can_view,
+          can_add: perm.can_add,
+          can_edit: perm.can_edit,
+          can_delete: perm.can_delete,
+          is_login_page: false,
+        };
+        console.log(`Saving permission for ${perm.page}:`, data);
 
-      resetForm();
+        if (perm.id) {
+          await apiClient.put(`/auth/permissions/${perm.id}/`, data);
+        } else {
+          await apiClient.post('/auth/permissions/', data);
+        }
+      }
+      setSuccess('Permissions saved successfully');
+      setIsModalOpen(false);
+      setSelectedRoleId(null);
+      setModalPermissions([]);
       const permissionsResponse = await apiClient.get('/auth/permissions/list/');
+      console.log('Updated permissions:', permissionsResponse.data);
       setPermissions(permissionsResponse.data);
     } catch (error) {
-      const errorMsg =
-        error.response?.data?.error ||
-        (error.response?.status === 400 && error.response?.data?.non_field_errors
-          ? error.response.data.non_field_errors[0]
-          : 'Failed to save permission. Please try again.');
       setWarnings({
         ...warnings,
-        general: errorMsg,
+        general: error.response?.data?.error || 'Failed to save permissions. Please try again.',
       });
     }
   };
 
-  const handleEdit = (permission) => {
-    setFormData({
-      id: permission.id,
-      role_id: permission.role,
-      page: permission.page,
-      can_view: permission.can_view,
-      can_add: permission.can_add,
-      can_edit: permission.can_edit,
-      can_delete: permission.can_delete,
-      is_login_page: permission.is_login_page,
-    });
-    setIsEditing(true);
-    setWarnings({ role_id: '', page: '', general: '' });
-    setSuccess('');
-  };
-
-  const handleDelete = async (permissionId) => {
-    if (window.confirm('Are you sure you want to delete this permission?')) {
-      try {
-        await apiClient.delete(`/auth/permissions/${permissionId}/`);
-        setSuccess('Permission deleted successfully');
-        setPermissions(permissions.filter((p) => p.id !== permissionId));
-      } catch (error) {
-        setWarnings({
-          ...warnings,
-          general: error.response?.data?.error || 'Failed to delete permission. Please try again.',
-        });
-      }
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      id: null,
-      role_id: '',
-      page: '',
-      can_view: false,
-      can_add: false,
-      can_edit: false,
-      can_delete: false,
-      is_login_page: false,
-    });
-    setIsEditing(false);
-    setWarnings({ role_id: '', page: '', general: '' });
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedRoleId(null);
+    setModalPermissions([]);
   };
 
   return (
     <div className="flex items-center justify-center">
       <div className="w-full p-8 bg-transparent">
-        <h1 className="text-xl font-semibold text-gray-800 mb-6">Permissions Management</h1>
-        <p className="text-xs text-gray-800 mb-8">Assign permissions to roles for different pages.</p>
+        <h1 className="text-xl font-semibold text-gray-800 mb-6">Roles Management</h1>
+        <p className="text-xs text-gray-800 mb-8">View existing roles and manage their permissions.</p>
         {warnings.general && <p className="text-xs text-red-500 mb-4">{warnings.general}</p>}
         {success && <p className="text-xs text-green-500 mb-4">{success}</p>}
         {isLoading && <p className="text-xs text-gray-500 mb-4">Loading...</p>}
-        <form onSubmit={handleSubmit} className="space-y-6 mb-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-gray-800 mb-2">Role</label>
-              <select
-                name="role_id"
-                value={formData.role_id}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition-all duration-200 bg-gray-100 hover:bg-gray-50"
-                disabled={isLoading}
-              >
-                <option value="">Select Role</option>
-                {roles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                  </option>
-                ))}
-              </select>
-              {warnings.role_id && <p className="text-xs text-red-500 mt-1">{warnings.role_id}</p>}
-            </div>
-            <div>
-              <label className="block text-xs text-gray-800 mb-2">Page</label>
-              <select
-                name="page"
-                value={formData.page}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition-all duration-200 bg-gray-100 hover:bg-gray-50"
-                disabled={isLoading}
-              >
-                <option value="">Select Page</option>
-                {pages.map((page) => (
-                  <option key={page} value={page}>
-                    {page}
-                  </option>
-                ))}
-              </select>
-              {warnings.page && <p className="text-xs text-red-500 mt-1">{warnings.page}</p>}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="can_view"
-                checked={formData.can_view}
-                onChange={handleChange}
-                className="h-4 w-4 border-gray-300 rounded"
-                disabled={isLoading}
-              />
-              <label className="ml-2 block text-xs text-gray-800">Can View</label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="can_add"
-                checked={formData.can_add}
-                onChange={handleChange}
-                className="h-4 w-4 border-gray-300 rounded"
-                disabled={isLoading}
-              />
-              <label className="ml-2 block text-xs text-gray-800">Can Add</label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="can_edit"
-                checked={formData.can_edit}
-                onChange={handleChange}
-                className="h-4 w-4 border-gray-300 rounded"
-                disabled={isLoading}
-              />
-              <label className="ml-2 block text-xs text-gray-800">Can Edit</label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="can_delete"
-                checked={formData.can_delete}
-                onChange={handleChange}
-                className="h-4 w-4 border-gray-300 rounded"
-                disabled={isLoading}
-              />
-              <label className="ml-2 block text-xs text-gray-800">Can Delete</label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="is_login_page"
-                checked={formData.is_login_page}
-                onChange={handleChange}
-                className="h-4 w-4 border-gray-300 rounded"
-                disabled={isLoading}
-              />
-              <label className="ml-2 block text-xs text-gray-800">Login Page</label>
-            </div>
-          </div>
-          <div className="flex justify-end space-x-4">
-            {isEditing && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-6 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-sm transition-all duration-300"
-                disabled={isLoading}
-              >
-                Cancel
-              </button>
-            )}
-            <button
-              type="submit"
-              className="px-6 py-2 bg-blue-200 text-blue-800 hover:text-gray-800 hover:bg-gray-200 text-sm font-medium rounded-sm transition-all duration-300"
-              disabled={isLoading}
-            >
-              {isEditing ? 'Update Permission' : 'Create Permission'}
-            </button>
-          </div>
-        </form>
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Existing Permissions</h2>
+
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Existing Roles</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left text-gray-800">
             <thead className="text-xs text-gray-800 uppercase bg-gray-100">
               <tr>
                 <th className="px-6 py-3">Role</th>
-                <th className="px-6 py-3">Page</th>
-                <th className="px-6 py-3">Can View</th>
-                <th className="px-6 py-3">Can Add</th>
-                <th className="px-6 py-3">Can Edit</th>
-                <th className="px-6 py-3">Can Delete</th>
-                <th className="px-6 py-3">Login Page</th>
-                <th className="px-6 py-3">Actions</th>
+                <th className="px-6 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
-                    Loading permissions...
+                  <td colSpan="2" className="px-6 py-4 text-center text-gray-500">
+                    Loading roles...
                   </td>
                 </tr>
-              ) : permissions.length === 0 ? (
+              ) : roles.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
-                    No permissions found.
+                  <td colSpan="2" className="px-6 py-4 text-center text-gray-500">
+                    No roles found.
                   </td>
                 </tr>
               ) : (
-                permissions.map((permission) => (
-                  <tr key={permission.id} className="bg-white border-b">
-                    <td className="px-6 py-4">
-                      {roles.find((r) => r.id === permission.role)?.name || 'Unknown Role'}
-                    </td>
-                    <td className="px-6 py-4">{permission.page || 'N/A'}</td>
-                    <td className="px-6 py-4">{permission.can_view ? 'Yes' : 'No'}</td>
-                    <td className="px-6 py-4">{permission.can_add ? 'Yes' : 'No'}</td>
-                    <td className="px-6 py-4">{permission.can_edit ? 'Yes' : 'No'}</td>
-                    <td className="px-6 py-4">{permission.can_delete ? 'Yes' : 'No'}</td>
-                    <td className="px-6 py-4">{permission.is_login_page ? 'Yes' : 'No'}</td>
-                    <td className="px-6 py-4 space-x-8">
+                roles.map((role) => (
+                  <tr key={role.id} className="bg-white border-b">
+                    <td className="px-6 py-4">{role.name}</td>
+                    <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => handleEdit(permission)}
-                        className="text-blue-500 hover:underline"
+                        onClick={() => openPermissionModal(role.id)}
+                        className="px-4 py-2 bg-blue-200 text-blue-800 hover:bg-gray-200 text-sm font-medium rounded-sm transition-all duration-300"
                         disabled={isLoading}
                       >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(permission.id)}
-                        className="text-red-500 hover:underline"
-                        disabled={isLoading}
-                      >
-                        Delete
+                        Permissions
                       </button>
                     </td>
                   </tr>
@@ -362,6 +170,82 @@ const Permissions = () => {
             </tbody>
           </table>
         </div>
+
+        {isModalOpen && (
+          <div className="fixed inset-0 backdrop-brightness-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                Permissions for {roles.find((r) => r.id === selectedRoleId)?.name}
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-gray-800">
+                  <thead className="text-xs text-gray-800 uppercase bg-gray-100">
+                    <tr>
+                      <th className="px-6 py-3">Page</th>
+                      <th className="px-6 py-3">View</th>
+                      <th className="px-6 py-3">Add</th>
+                      <th className="px-6 py-3">Edit</th>
+                      <th className="px-6 py-3">Delete</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modalPermissions.map((perm) => (
+                      <tr key={perm.page} className="bg-white border-b">
+                        <td className="px-6 py-4">{perm.page}</td>
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={perm.can_view}
+                            onChange={() => handleModalPermissionChange(perm.page, 'can_view')}
+                            className="h-4 w-4 border-gray-300 rounded"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={perm.can_add}
+                            onChange={() => handleModalPermissionChange(perm.page, 'can_add')}
+                            className="h-4 w-4 border-gray-300 rounded"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={perm.can_edit}
+                            onChange={() => handleModalPermissionChange(perm.page, 'can_edit')}
+                            className="h-4 w-4 border-gray-300 rounded"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={perm.can_delete}
+                            onChange={() => handleModalPermissionChange(perm.page, 'can_delete')}
+                            className="h-4 w-4 border-gray-300 rounded"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-end gap-4 mt-6">
+                <button
+                  onClick={closeModal}
+                  className="px-6 py-2 bg-gray-200 text-gray-800 hover:bg-gray-300 text-sm font-medium rounded-sm transition-all duration-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveModalPermissions}
+                  className="px-6 py-2 bg-blue-200 text-blue-800 hover:bg-gray-200 text-sm font-medium rounded-sm transition-all duration-300"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

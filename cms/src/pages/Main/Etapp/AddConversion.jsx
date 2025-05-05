@@ -7,28 +7,23 @@ const AddNewApplication = () => {
     name: "",
     address: "",
     file_number: "",
-    area: "", // Will store area ID
+    area: "",
     from_connection_type: "",
     to_connection_type: "",
   });
   const [connectionTypes, setConnectionTypes] = useState([]);
-  const [areas, setAreas] = useState([]); // New state for areas
+  const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState("");
 
-  // Fetch connection types and areas
   useEffect(() => {
     const fetchConnectionTypes = async () => {
       try {
-        const response = await apiClient.get(
-          "/connectiontype/connection-types/"
-        );
-        console.log("Connection types response:", response.data);
+        const response = await apiClient.get("/connectiontype/connection-types/");
         setConnectionTypes(response.data);
       } catch (err) {
-        console.error("Failed to fetch connection types:", err);
         setGeneralError("Failed to load connection types. Please try again.");
         toast.error("Failed to load connection types.");
       }
@@ -37,14 +32,12 @@ const AddNewApplication = () => {
     const fetchAreas = async () => {
       try {
         const response = await apiClient.get("/area/add-area/");
-        console.log("Areas response:", response.data);
         const areaOptions = response.data.map((area) => ({
           value: area.id,
           label: area.area_name,
         }));
         setAreas(areaOptions);
       } catch (err) {
-        console.error("Failed to fetch areas:", err);
         setGeneralError("Failed to load areas. Please try again.");
         toast.error("Failed to load areas.");
       }
@@ -55,7 +48,6 @@ const AddNewApplication = () => {
     });
   }, []);
 
-  // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -63,7 +55,6 @@ const AddNewApplication = () => {
     setGeneralError("");
   };
 
-  // Validate form
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Name is required.";
@@ -78,7 +69,6 @@ const AddNewApplication = () => {
     return newErrors;
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -95,11 +85,10 @@ const AddNewApplication = () => {
         name: formData.name.trim(),
         address: formData.address.trim(),
         file_number: formData.file_number.trim(),
-        area: parseInt(formData.area), // Send area ID
+        area: parseInt(formData.area),
         from_connection_type: parseInt(formData.from_connection_type),
         to_connection_type: parseInt(formData.to_connection_type),
       };
-      console.log("Submitting payload:", payload);
       await apiClient.post("/conversion/conversions/", payload);
       setFormData({
         name: "",
@@ -109,10 +98,8 @@ const AddNewApplication = () => {
         from_connection_type: "",
         to_connection_type: "",
       });
-      setGeneralError("");
       toast.success("Conversion added successfully!");
     } catch (err) {
-      console.error("Failed to add conversion:", err);
       const errorMsg =
         err.response?.data?.detail ||
         Object.values(err.response?.data || {})[0]?.[0] ||
@@ -124,7 +111,6 @@ const AddNewApplication = () => {
     }
   };
 
-  // Get selected connection type and area for display
   const selectedFromConnectionType = connectionTypes.find(
     (type) => type.id === parseInt(formData.from_connection_type)
   );
@@ -136,28 +122,20 @@ const AddNewApplication = () => {
   );
 
   return (
-    <div className="mt-14 p-4 max-w-4xl mx-auto bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold text-[#00334d] mb-6">
+    <div className="mt-4 p-4 max-w-xl mx-auto sm:mt-14 sm:p-6">
+      <h1 className="text-xl font-bold text-[#00334d] mb-4 sm:text-2xl">
         Add New Conversion Application
       </h1>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-lg shadow-md"
-      >
-        {/* General Error Message */}
+      <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow-md sm:p-6">
         {generalError && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
             {generalError}
           </div>
         )}
 
-        {/* From Connection Type */}
         <div className="mb-4">
-          <label
-            htmlFor="from_connection_type"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="from_connection_type" className="block text-sm font-medium text-gray-700 mb-2">
             From Connection Type
           </label>
           <select
@@ -192,12 +170,8 @@ const AddNewApplication = () => {
           )}
         </div>
 
-        {/* To Connection Type */}
         <div className="mb-4">
-          <label
-            htmlFor="to_connection_type"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="to_connection_type" className="block text-sm font-medium text-gray-700 mb-2">
             To Connection Type
           </label>
           <select
@@ -232,12 +206,8 @@ const AddNewApplication = () => {
           )}
         </div>
 
-        {/* Name */}
         <div className="mb-4">
-          <label
-            htmlFor="name"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
             Name
           </label>
           <input
@@ -255,12 +225,8 @@ const AddNewApplication = () => {
           )}
         </div>
 
-        {/* Address */}
         <div className="mb-4">
-          <label
-            htmlFor="address"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
             Address
           </label>
           <input
@@ -278,12 +244,8 @@ const AddNewApplication = () => {
           )}
         </div>
 
-        {/* File Number */}
         <div className="mb-4">
-          <label
-            htmlFor="file_number"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="file_number" className="block text-sm font-medium text-gray-700 mb-2">
             File Number
           </label>
           <input
@@ -301,12 +263,8 @@ const AddNewApplication = () => {
           )}
         </div>
 
-        {/* Area */}
         <div className="mb-4">
-          <label
-            htmlFor="area"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
+          <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-2">
             Area
           </label>
           <select
@@ -337,11 +295,10 @@ const AddNewApplication = () => {
           )}
         </div>
 
-        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading || fetchLoading}
-          className={`px-4 py-2 text-sm font-medium text-white bg-[#00334d] rounded-md hover:bg-[#002a3f] focus:outline-none focus:ring-2 focus:ring-[#00334d] ${
+          className={`w-full px-4 py-2 text-sm font-medium text-white bg-[#00334d] rounded-md hover:bg-[#002a3f] focus:outline-none focus:ring-2 focus:ring-[#00334d] sm:w-auto ${
             loading || fetchLoading ? "opacity-50 cursor-not-allowed" : ""
           }`}
         >

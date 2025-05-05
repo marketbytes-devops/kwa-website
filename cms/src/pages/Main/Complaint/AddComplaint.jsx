@@ -86,25 +86,33 @@ const AddComplaint = () => {
   }, []);
 
   return (
-    <div className="pt-14">
-      <Form
-        sectionName="Complaint Section"
-        dataSets={[
-          {
-            name: "Fields",
-            fields: mainSet,
-            setFields: setMainSet,
-            template: initialFields,
-            showEntryButtons: false,
-          },
-        ]}
-        editMode={editMode}
-        setEditMode={setEditMode}
-        apiEndpoint="/complaint/complaints/"
-        identifierField="id"
-        showAddItems={false}
-        contentDisplay={false}
-      />
+    <div className="pt-14 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+      <h2 className="text-xl sm:text-2xl font-bold mb-6 text-gray-800">Complaint Section</h2>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <Form
+          sectionName="Complaint Section"
+          dataSets={[
+            {
+              name: "Fields",
+              fields: mainSet.map((field) => ({
+                ...field,
+                className: "w-full p-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white shadow-sm",
+                labelClassName: "block text-sm font-medium text-gray-700 mb-1",
+                wrapperClassName: "mb-4",
+              })),
+              setFields: setMainSet,
+              template: initialFields,
+              showEntryButtons: false,
+            },
+          ]}
+          editMode={editMode}
+          setEditMode={setEditMode}
+          apiEndpoint="/complaint/complaints/"
+          identifierField="id"
+          showAddItems={false}
+          contentDisplay={false}
+        />
+      </div>
     </div>
   );
 };

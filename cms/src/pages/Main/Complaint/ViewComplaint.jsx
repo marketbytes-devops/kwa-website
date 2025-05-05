@@ -7,17 +7,18 @@ import "react-datepicker/dist/react-datepicker.css";
 const ViewComplaints = () => {
   const [complaints, setComplaints] = useState([]);
   const [filteredComplaints, setFilteredComplaints] = useState([]);
-  const [sortOrder, setSortOrder] = useState("newest"); // Default: Newest to Oldest
-  const [startDate, setStartDate] = useState(null); // Start date for filter (using date)
-  const [endDate, setEndDate] = useState(null); // End date for filter (using date)
-  const [searchQuery, setSearchQuery] = useState(""); // Search by name
-  const [departmentFilter, setDepartmentFilter] = useState(""); // Filter by department
-  const [statusFilter, setStatusFilter] = useState(""); // Filter by status
-  const [departments, setDepartments] = useState([]); // Unique departments
+  const [sortOrder, setSortOrder] = useState("newest");
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [departments, setDepartments] = useState([]);
+  const [permissions, setPermissions] = useState([]);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
   const { showAlert } = useAlert();
-  const [useApiFiltering, setUseApiFiltering] = useState(false); // Toggle for API filtering
+  const [useApiFiltering, setUseApiFiltering] = useState(false);
 
-  // Status options
   const statusOptions = [
     { value: "completed", label: "Completed" },
     { value: "accepted", label: "Accepted" },
@@ -25,7 +26,32 @@ const ViewComplaints = () => {
     { value: "return_for_review", label: "Return for Review" },
   ];
 
-  // Fetch complaints and extract departments
+  useEffect(() => {
+    apiClient
+      .get('/auth/profile/')
+      .then((response) => {
+        const user = response.data;
+        setIsSuperadmin(user.is_superuser || user.role?.name === 'Superadmin');
+        const roleId = user.role?.id;
+        if (roleId) {
+          apiClient
+            .get(`/auth/roles/${roleId}/`)
+            .then((res) => {
+              setPermissions(res.data.permissions || []);
+              console.log('Permissions:', res.data.permissions);
+            })
+            .catch((error) => {
+              console.error('Permissions fetch error:', error.response?.status, error.response?.data);
+            });
+        }
+      })
+      .catch((error) => {
+        console.error('Profile fetch error:', error.response?.status, error.response?.data);
+      });
+  }, []);
+
+  const hasDeletePermission = isSuperadmin || permissions.find((p) => p.page === 'complaints')?.can_delete;
+
   useEffect(() => {
     const fetchComplaints = async () => {
       try {
@@ -56,7 +82,6 @@ const ViewComplaints = () => {
         setComplaints(response.data);
         setFilteredComplaints(response.data);
 
-        // Extract unique departments
         const uniqueDepartments = [
           ...new Set(response.data.map((complaint) => complaint.department)),
         ];
@@ -78,7 +103,6 @@ const ViewComplaints = () => {
     useApiFiltering,
   ]);
 
-  // Apply client-side filtering
   useEffect(() => {
     if (useApiFiltering) return;
 
@@ -110,7 +134,6 @@ const ViewComplaints = () => {
       );
     }
 
-    // Apply sorting
     filtered.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
@@ -152,6 +175,10 @@ const ViewComplaints = () => {
   };
 
   const handleDelete = (complaintId) => {
+    if (!hasDeletePermission) {
+      showAlert("You do not have permission to delete complaints.", "error");
+      return;
+    }
     if (window.confirm("Are you sure you want to delete this complaint?")) {
       apiClient
         .delete(`/complaint/complaints/${complaintId}/`)
@@ -168,7 +195,10 @@ const ViewComplaints = () => {
         })
         .catch((error) => {
           console.error("Error deleting complaint:", error);
-          showAlert("Failed to delete complaint.", "error");
+          showAlert(
+            "Failed to delete complaint: " + (error.response?.data?.error || "Unknown error"),
+            "error"
+          );
         });
     }
   };
@@ -182,37 +212,33 @@ const ViewComplaints = () => {
     setSortOrder("newest");
   };
 
-  // Function to format date as YYYY-MM-DD
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toISOString().split("T")[0];
   };
 
   return (
-    <div className="pt-14">
-      <h2 className="text-2xl font-bold mb-4">View Complaints</h2>
+    <div className="pt-14 px-4 sm:px-6 lg:px-8">
+      <h2 className="text-xl sm:text-2xl font-bold mb-6 text-gray-800">View Complaints</h2>
 
-      {/* Sort and Filter Controls */}
-      <div className="mb-4 flex flex-wrap gap-4">
-        {/* Search by Name */}
-        <div>
-          <label className="mr-2 font-semibold">Search by Name:</label>
+      {/* Filters */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label className="text-sm font-semibold text-gray-700">Search by Name:</label>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Enter name"
-            className="border p-2 rounded"
+            className="w-full sm:w-48 p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
           />
         </div>
-
-        {/* Department Filter */}
-        <div>
-          <label className="mr-2 font-semibold">Department:</label>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label className="text-sm font-semibold text-gray-700">Department:</label>
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="border p-2 rounded"
+            className="w-full sm:w-48 p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
             <option value="">All Departments</option>
             {departments.map((dept) => (
@@ -222,14 +248,12 @@ const ViewComplaints = () => {
             ))}
           </select>
         </div>
-
-        {/* Status Filter */}
-        <div>
-          <label className="mr-2 font-semibold">Status:</label>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label className="text-sm font-semibold text-gray-700">Status:</label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border p-2 rounded"
+            className="w-full sm:w-48 p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
             <option value="">All Statuses</option>
             {statusOptions.map((option) => (
@@ -239,11 +263,9 @@ const ViewComplaints = () => {
             ))}
           </select>
         </div>
-
-        {/* Date Range Filter (using date) */}
-        <div className="flex gap-2 items-center">
-          <div>
-            <label className="mr-2 font-semibold">From:</label>
+        <div className="flex flex-col sm:flex-row sm:gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <label className="text-sm font-semibold text-gray-700">From:</label>
             <DatePicker
               selected={startDate}
               onChange={(date) => setStartDate(date)}
@@ -251,11 +273,11 @@ const ViewComplaints = () => {
               startDate={startDate}
               endDate={endDate}
               placeholderText="Select start date"
-              className="border p-2 rounded"
+              className="w-full sm:w-48 p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
-          <div>
-            <label className="mr-2 font-semibold">To:</label>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <label className="text-sm font-semibold text-gray-700">To:</label>
             <DatePicker
               selected={endDate}
               onChange={(date) => setEndDate(date)}
@@ -264,98 +286,156 @@ const ViewComplaints = () => {
               endDate={endDate}
               minDate={startDate}
               placeholderText="Select end date"
-              className="border p-2 rounded"
+              className="w-full sm:w-48 p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
         </div>
-
-        {/* Sorting Buttons */}
-        <div>
+        <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={() => setSortOrder("oldest")}
-            className={`mr-2 px-4 py-2 rounded ${
+            className={`w-full sm:w-auto px-4 py-2 text-sm rounded-lg ${
               sortOrder === "oldest"
                 ? "bg-blue-600 text-white"
-                : "bg-gray-200 text-gray-700"
-            }`}
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            } transition-colors`}
           >
-            Sort: Oldest to Newest
+            Oldest to Newest
           </button>
           <button
             onClick={() => setSortOrder("newest")}
-            className={`px-4 py-2 rounded ${
+            className={`w-full sm:w-auto px-4 py-2 text-sm rounded-lg ${
               sortOrder === "newest"
                 ? "bg-blue-600 text-white"
-                : "bg-gray-200 text-gray-700"
-            }`}
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            } transition-colors`}
           >
-            Sort: Newest to Oldest
+            Newest to Oldest
           </button>
         </div>
-
-        {/* Clear Filters Button */}
-        <div>
+        <div className="flex">
           <button
             onClick={clearFilters}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            className="w-full sm:w-auto px-4 py-2 text-sm bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             Clear Filters
           </button>
         </div>
       </div>
 
-      <table className="min-w-full bg-white border border-gray-300">
-        <thead>
-          <tr>
-            <th className="py-2 px-4 border-b">Serial No</th>
-            <th className="py-2 px-4 border-b">Ticket Number</th>
-            <th className="py-2 px-4 border-b">Name</th>
-            <th className="py-2 px-4 border-b">Address</th>
-            <th className="py-2 px-4 border-b">Phone Number</th>
-            <th className="py-2 px-4 border-b">Department</th>
-            <th className="py-2 px-4 border-b">Created At</th>
-            <th className="py-2 px-4 border-b">Status</th>
-            <th className="py-2 px-4 border-b">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredComplaints.map((complaint) => (
-            <tr key={complaint.id}>
-              <td className="py-2 px-4 border-b">{complaint.serial_no}</td>
-              <td className="py-2 px-4 border-b">{complaint.ticket_number}</td>
-              <td className="py-2 px-4 border-b">{complaint.name}</td>
-              <td className="py-2 px-4 border-b">{complaint.address}</td>
-              <td className="py-2 px-4 border-b">{complaint.phone_number}</td>
-              <td className="py-2 px-4 border-b">{complaint.department}</td>
-              <td className="py-2 px-4 border-b">
-                {formatDate(complaint.date)}
-              </td>
-              <td className="py-2 px-4 border-b">
+      {/* Table for Desktop */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-md">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">Serial No</th>
+              <th className="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">Ticket Number</th>
+              <th className="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">Name</th>
+              <th className="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">Address</th>
+              <th className="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">Phone Number</th>
+              <th className="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">Department</th>
+              <th className="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">Created At</th>
+              <th className="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">Status</th>
+              <th className="py-3 px-4 border-b text-left text-sm font-semibold text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredComplaints.map((complaint) => (
+              <tr key={complaint.id} className="hover:bg-gray-50">
+                <td className="py-3 px-4 border-b text-sm text-gray-600">{complaint.serial_no}</td>
+                <td className="py-3 px-4 border-b text-sm text-gray-600">{complaint.ticket_number}</td>
+                <td className="py-3 px-4 border-b text-sm text-gray-600">{complaint.name}</td>
+                <td className="py-3 px-4 border-b text-sm text-gray-600">{complaint.address}</td>
+                <td className="py-3 px-4 border-b text-sm text-gray-600">{complaint.phone_number}</td>
+                <td className="py-3 px-4 border-b text-sm text-gray-600">{complaint.department}</td>
+                <td className="py-3 px-4 border-b text-sm text-gray-600">{formatDate(complaint.date)}</td>
+                <td className="py-3 px-4 border-b text-sm">
+                  <select
+                    value={complaint.status}
+                    onChange={(e) => handleStatusChange(complaint.id, e.target.value)}
+                    className="w-full p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  >
+                    <option value="completed">Completed</option>
+                    <option value="accepted">Accepted</option>
+                    <option value="processing">Processing</option>
+                    <option value="return_for_review">Return for Review</option>
+                  </select>
+                </td>
+                <td className="py-3 px-4 border-b text-sm">
+                  {hasDeletePermission && (
+                    <button
+                      onClick={() => handleDelete(complaint.id)}
+                      className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Card Layout for Mobile */}
+      <div className="md:hidden space-y-4">
+        {filteredComplaints.map((complaint) => (
+          <div key={complaint.id} className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm font-semibold text-gray-700">Serial No:</span>
+                <span className="text-sm text-gray-600">{complaint.serial_no}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-semibold text-gray-700">Ticket Number:</span>
+                <span className="text-sm text-gray-600">{complaint.ticket_number}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-semibold text-gray-700">Name:</span>
+                <span className="text-sm text-gray-600">{complaint.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-semibold text-gray-700">Address:</span>
+                <span className="text-sm text-gray-600">{complaint.address}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-semibold text-gray-700">Phone Number:</span>
+                <span className="text-sm text-gray-600">{complaint.phone_number}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-semibold text-gray-700">Department:</span>
+                <span className="text-sm text-gray-600">{complaint.department}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-semibold text-gray-700">Created At:</span>
+                <span className="text-sm text-gray-600">{formatDate(complaint.date)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-semibold text-gray-700">Status:</span>
                 <select
                   value={complaint.status}
-                  onChange={(e) =>
-                    handleStatusChange(complaint.id, e.target.value)
-                  }
-                  className="border p-2 rounded"
+                  onChange={(e) => handleStatusChange(complaint.id, e.target.value)}
+                  className="w-32 p-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 >
                   <option value="completed">Completed</option>
                   <option value="accepted">Accepted</option>
                   <option value="processing">Processing</option>
                   <option value="return_for_review">Return for Review</option>
                 </select>
-              </td>
-              <td className="py-2 px-4 border-b">
-                <button
-                  onClick={() => handleDelete(complaint.id)}
-                  className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+              {hasDeletePermission && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => handleDelete(complaint.id)}
+                    className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

@@ -40,16 +40,13 @@ class ValveSerializer(serializers.ModelSerializer):
         read_only_fields = ['previous_position']
 
     def create(self, validated_data):
-        # Set a default value for previous_position if not provided
         if 'previous_position' not in validated_data:
             validated_data['previous_position'] = ""
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        # Store the old current_condition before updating
         old_current_condition = instance.current_condition
 
-        # Log changes for all fields
         for field, new_value in validated_data.items():
             old_value = getattr(instance, field)
             if old_value != new_value:
@@ -61,11 +58,9 @@ class ValveSerializer(serializers.ModelSerializer):
                     new_value=str(new_value)
                 )
 
-        # If current_condition is being updated, set previous_position to old current_condition
         if 'current_condition' in validated_data:
             instance.previous_position = str(old_current_condition)
 
-        # Update the instance with validated data
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()

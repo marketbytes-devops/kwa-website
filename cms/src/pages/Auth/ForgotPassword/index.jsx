@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import apiClient from '../../../api/apiClient';
-import authBg from "../../../assets/images/water.webp";
+import authBg from "../../../assets/images/waterlog.jpg";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');

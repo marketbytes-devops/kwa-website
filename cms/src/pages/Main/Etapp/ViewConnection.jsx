@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../../api/apiClient';
-import { toast } from 'react-toastify';
+import { useAlert } from '../../../context/AlertContext';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
@@ -33,6 +33,10 @@ const ViewConnection = () => {
     status: '',
   });
   const [editErrors, setEditErrors] = useState({});
+  const [permissions, setPermissions] = useState([]);
+  const [hasDeletePermission, setHasDeletePermission] = useState(false);
+  const [hasEditPermission, setHasEditPermission] = useState(false);
+  const { showAlert } = useAlert();
 
   const statusOptions = [
     { value: 'assistant_engineer', label: 'Assistant Engineer' },
@@ -41,7 +45,6 @@ const ViewConnection = () => {
     { value: 'completed', label: 'Completed' },
   ];
 
-  // Fetch connections and connection types
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -60,34 +63,45 @@ const ViewConnection = () => {
         const connectionsResponse = await apiClient.get(
           `/connectiontype/connections/${useApiFiltering ? `?${queryParams.toString()}` : ''}`
         );
-        console.log('Connections response:', connectionsResponse.data);
         setConnections(connectionsResponse.data);
         setFilteredConnections(connectionsResponse.data);
 
         const typesResponse = await apiClient.get('/connectiontype/connection-types/');
-        console.log('Connection types response:', typesResponse.data);
         setConnectionTypes(typesResponse.data);
 
         const uniqueAreas = [...new Set(connectionsResponse.data.map(conn => conn.area))];
         setAreas(uniqueAreas);
 
+        const profileResponse = await apiClient.get('/auth/profile/');
+        const user = profileResponse.data;
+        const roleId = user.role?.id;
+        if (roleId) {
+          const roleResponse = await apiClient.get(`/auth/roles/${roleId}/`);
+          const rolePermissions = roleResponse.data.permissions || [];
+          setPermissions(rolePermissions);
+          const eTappPermission = rolePermissions.find(perm => perm.page === 'e-tapp');
+          setHasDeletePermission(eTappPermission?.can_delete || false);
+          setHasEditPermission(eTappPermission?.can_edit || false);
+        } else {
+          setHasDeletePermission(false);
+          setHasEditPermission(false);
+        }
+
         setError('');
       } catch (err) {
-        console.error('Failed to fetch data:', err);
         const errorMsg =
           err.response?.data?.detail ||
-          'Failed to load connections or connection types. Please try again.';
+          'Failed to load connections, connection types, or permissions. Please try again.';
         setError(errorMsg);
-        toast.error(errorMsg);
+        showAlert(errorMsg, 'error');
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [filters, searchQuery, sortOrder, useApiFiltering]);
+  }, [filters, searchQuery, sortOrder, useApiFiltering, showAlert]);
 
-  // Apply client-side filters and sorting
   useEffect(() => {
     if (useApiFiltering) return;
 
@@ -124,33 +138,27 @@ const ViewConnection = () => {
     setFilteredConnections(sorted);
   }, [filters, searchQuery, sortOrder, connections, useApiFiltering]);
 
-  // Handle filter changes
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle search input change
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
   };
 
-  // Clear search
   const clearSearch = () => {
     setSearchQuery('');
   };
 
-  // Handle date filter changes
   const handleDateFilterChange = (date, name) => {
     setFilters(prev => ({ ...prev, [name]: date }));
   };
 
-  // Toggle date sorting
   const toggleDateSort = () => {
     setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
   };
 
-  // Clear filters and sort
   const clearFiltersAndSort = () => {
     setFilters({
       connection_type: '',
@@ -163,8 +171,11 @@ const ViewConnection = () => {
     setSortOrder('asc');
   };
 
-  // Handle status change in table
   const handleStatusChange = async (connectionId, newStatus) => {
+    if (!hasEditPermission) {
+      showAlert('You do not have permission to edit connections.', 'error');
+      return;
+    }
     try {
       const response = await apiClient.patch(`/connectiontype/connections/${connectionId}/`, { status: newStatus });
       setConnections(prev => prev.map(conn =>
@@ -173,17 +184,15 @@ const ViewConnection = () => {
       setFilteredConnections(prev => prev.map(conn =>
         conn.id === connectionId ? { ...conn, status: newStatus } : conn
       ));
-      toast.success('Status updated successfully!');
+      showAlert('Status updated successfully!', 'success');
     } catch (err) {
-      console.error('Failed to update status:', err);
       const errorMsg =
         err.response?.data?.detail ||
         'Failed to update status.';
-      toast.error(errorMsg);
+      showAlert(errorMsg, 'error');
     }
   };
 
-  // Open edit modal
   const openEditModal = (connection) => {
     setEditConnection(connection);
     setEditFormData({
@@ -199,14 +208,12 @@ const ViewConnection = () => {
     setEditModalOpen(true);
   };
 
-  // Handle edit form input changes
   const handleEditInputChange = (e) => {
     const { name, value } = e.target;
     setEditFormData(prev => ({ ...prev, [name]: value }));
     setEditErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  // Validate edit form
   const validateEditForm = () => {
     const newErrors = {};
     if (!editFormData.name.trim()) newErrors.name = 'Name is required.';
@@ -218,7 +225,6 @@ const ViewConnection = () => {
     return newErrors;
   };
 
-  // Handle edit form submission
   const handleEditSubmit = async (e) => {
     e.preventDefault();
 
@@ -237,7 +243,6 @@ const ViewConnection = () => {
         connection_type: parseInt(editFormData.connection_type),
         status: editFormData.status,
       };
-      console.log('Updating connection payload:', payload);
       const response = await apiClient.patch(`/connectiontype/connections/${editFormData.id}/`, payload);
 
       setConnections(prev => prev.map(conn =>
@@ -248,45 +253,43 @@ const ViewConnection = () => {
       ));
 
       setEditModalOpen(false);
-      toast.success('Connection updated successfully!');
+      showAlert('Connection updated successfully!', 'success');
     } catch (err) {
-      console.error('Failed to update connection:', err);
       const errorMsg =
         err.response?.data?.detail ||
         Object.values(err.response?.data || {})[0]?.[0] ||
         'Failed to update connection.';
-      toast.error(errorMsg);
+      showAlert(errorMsg, 'error');
     }
   };
 
-  // Handle delete
   const handleDelete = async (id) => {
+    if (!hasDeletePermission) {
+      showAlert('You do not have permission to delete connections.', 'error');
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to delete this connection?')) return;
 
     try {
       await apiClient.delete(`/connectiontype/connections/${id}/`);
-
       setConnections(prev => prev.filter(conn => conn.id !== id));
       setFilteredConnections(prev => prev.filter(conn => conn.id !== id));
-
-      toast.success('Connection deleted successfully!');
+      showAlert('Connection deleted successfully!', 'success');
     } catch (err) {
-      console.error('Failed to delete connection:', err);
       const errorMsg =
         err.response?.data?.detail ||
         'Failed to delete connection.';
-      toast.error(errorMsg);
+      showAlert(errorMsg, 'error');
     }
   };
 
   return (
-    <div className="mt-14 p-4 max-w-6xl mx-auto bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-bold text-[#00334d] mb-6">View Connections</h1>
+    <div className="mt-4 p-4 max-w-6xl mx-auto sm:mt-14 sm:p-6">
+      <h1 className="text-xl font-bold text-[#00334d] mb-4 sm:text-2xl">View Connections</h1>
 
-      {/* Filters */}
-      <div className="mb-6 bg-white p-4 rounded-lg shadow-md">
+      <div className="mb-4 bg-white p-4 rounded-lg shadow-md sm:p-6">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          {/* Search by Name */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
               Search by Name
@@ -309,7 +312,6 @@ const ViewConnection = () => {
               </button>
             </div>
           </div>
-          {/* Connection Type Filter */}
           <div>
             <label htmlFor="connection_type" className="block text-sm font-medium text-gray-700 mb-2">
               Connection Type
@@ -330,7 +332,6 @@ const ViewConnection = () => {
               ))}
             </select>
           </div>
-          {/* Area Filter */}
           <div>
             <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-2">
               Area
@@ -351,7 +352,6 @@ const ViewConnection = () => {
               ))}
             </select>
           </div>
-          {/* Status Filter */}
           <div>
             <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
               Status
@@ -372,7 +372,6 @@ const ViewConnection = () => {
               ))}
             </select>
           </div>
-          {/* Date From Filter */}
           <div>
             <label htmlFor="date_from" className="block text-sm font-medium text-gray-700 mb-2">
               Created From
@@ -387,7 +386,6 @@ const ViewConnection = () => {
               disabled={loading}
             />
           </div>
-          {/* Date To Filter */}
           <div>
             <label htmlFor="date_to" className="block text-sm font-medium text-gray-700 mb-2">
               Created To
@@ -411,20 +409,17 @@ const ViewConnection = () => {
         </button>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
           {error}
         </div>
       )}
 
-      {/* Edit Modal */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-md max-w-lg w-full">
             <h2 className="text-xl font-bold text-[#00334d] mb-4">Edit Connection</h2>
             <form onSubmit={handleEditSubmit}>
-              {/* Name */}
               <div className="mb-4">
                 <label htmlFor="edit_name" className="block text-sm font-medium text-gray-700 mb-2">
                   Name
@@ -440,7 +435,6 @@ const ViewConnection = () => {
                 {editErrors.name && <p className="mt-2 text-sm text-red-600">{editErrors.name}</p>}
               </div>
 
-              {/* Address */}
               <div className="mb-4">
                 <label htmlFor="edit_address" className="block text-sm font-medium text-gray-700 mb-2">
                   Address
@@ -456,7 +450,6 @@ const ViewConnection = () => {
                 {editErrors.address && <p className="mt-2 text-sm text-red-600">{editErrors.address}</p>}
               </div>
 
-              {/* File Number */}
               <div className="mb-4">
                 <label htmlFor="edit_file_number" className="block text-sm font-medium text-gray-700 mb-2">
                   File Number
@@ -472,7 +465,6 @@ const ViewConnection = () => {
                 {editErrors.file_number && <p className="mt-2 text-sm text-red-600">{editErrors.file_number}</p>}
               </div>
 
-              {/* Area */}
               <div className="mb-4">
                 <label htmlFor="edit_area" className="block text-sm font-medium text-gray-700 mb-2">
                   Area
@@ -488,7 +480,6 @@ const ViewConnection = () => {
                 {editErrors.area && <p className="mt-2 text-sm text-red-600">{editErrors.area}</p>}
               </div>
 
-              {/* Connection Type */}
               <div className="mb-4">
                 <label htmlFor="edit_connection_type" className="block text-sm font-medium text-gray-700 mb-2">
                   Connection Type
@@ -510,7 +501,6 @@ const ViewConnection = () => {
                 {editErrors.connection_type && <p className="mt-2 text-sm text-red-600">{editErrors.connection_type}</p>}
               </div>
 
-              {/* Status */}
               <div className="mb-4">
                 <label htmlFor="edit_status" className="block text-sm font-medium text-gray-700 mb-2">
                   Status
@@ -532,7 +522,6 @@ const ViewConnection = () => {
                 {editErrors.status && <p className="mt-2 text-sm text-red-600">{editErrors.status}</p>}
               </div>
 
-              {/* Modal Buttons */}
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
@@ -553,7 +542,6 @@ const ViewConnection = () => {
         </div>
       )}
 
-      {/* Loading State */}
       {loading ? (
         <div className="text-center text-gray-600">Loading connections...</div>
       ) : (
@@ -596,31 +584,41 @@ const ViewConnection = () => {
                     <td className="px-4 py-2">{connection.name}</td>
                     <td className="px-4 py-2">{connection.address}</td>
                     <td className="px-4 py-2">
-                      <select
-                        value={connection.status}
-                        onChange={(e) => handleStatusChange(connection.id, e.target.value)}
-                        className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00334d]"
-                      >
-                        {statusOptions.map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                      {hasEditPermission ? (
+                        <select
+                          value={connection.status}
+                          onChange={(e) => handleStatusChange(connection.id, e.target.value)}
+                          className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#00334d]"
+                        >
+                          {statusOptions.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="px-2 py-1 text-sm text-gray-600">
+                          {statusOptions.find(opt => opt.value === connection.status)?.label || connection.status}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2 flex gap-2">
-                      <button
-                        onClick={() => openEditModal(connection)}
-                        className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(connection.id)}
-                        className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
+                      {hasEditPermission && (
+                        <button
+                          onClick={() => openEditModal(connection)}
+                          className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {hasDeletePermission && (
+                        <button
+                          onClick={() => handleDelete(connection.id)}
+                          className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
